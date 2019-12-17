@@ -116,7 +116,7 @@ If you would like to attempt to authorize an action and automatically throw an `
 
     // The action is authorized...
 
-#### Supplying Additional Context 
+#### Supplying Additional Context
 
 The gate methods for authorizing abilities (`allows`, `denies`, `check`, `any`, `none`, `authorize`, `can`, `cannot`) and the authorization [Blade directives](#via-blade-templates) (`@can`, `@cannot`, `@canany`) can receive an array as the second argument. These array elements are passed as parameters to gate, and can be used for additional context when making authorization decisions:
 
@@ -131,7 +131,7 @@ The gate methods for authorizing abilities (`allows`, `denies`, `check`, `any`, 
 <a name="gate-responses"></a>
 ### Gate Responses
 
-So far, we have only examined gates that return simple boolean values. However, sometimes you may wish to return a more detail response, including an error message. To do so, you may return a `Illuminate\Auth\Access\Response` from your gate:
+So far, we have only examined gates that return simple boolean values. However, sometimes you may wish to return a more detailed response, including an error message. To do so, you may return a `Illuminate\Auth\Access\Response` from your gate:
 
     use Illuminate\Auth\Access\Response;
     use Illuminate\Support\Facades\Gate;
@@ -142,7 +142,7 @@ So far, we have only examined gates that return simple boolean values. However, 
                     : Response::deny('You must be a super administrator.');
     });
 
-When returning an authorization response from your gate, the `Gate::allows` method will still return a simple boolean value; however, you may use use the `Gate::inspect` method to get the full authorization response returned by the gate:
+When returning an authorization response from your gate, the `Gate::allows` method will still return a simple boolean value; however, you may use the `Gate::inspect` method to get the full authorization response returned by the gate:
 
     $response = Gate::inspect('edit-settings', $post);
 
@@ -290,7 +290,7 @@ You may continue to define additional methods on the policy as needed for the va
 <a name="policy-responses"></a>
 ### Policy Responses
 
-So far, we have only examined policy methods that return simple boolean values. However, sometimes you may wish to return a more detail response, including an error message. To do so, you may return a `Illuminate\Auth\Access\Response` from your policy method:
+So far, we have only examined policy methods that return simple boolean values. However, sometimes you may wish to return a more detailed response, including an error message. To do so, you may return an `Illuminate\Auth\Access\Response` from your policy method:
 
     use Illuminate\Auth\Access\Response;
 
@@ -299,7 +299,7 @@ So far, we have only examined policy methods that return simple boolean values. 
      *
      * @param  \App\User  $user
      * @param  \App\Post  $post
-     * @return bool
+     * @return \Illuminate\Auth\Access\Response
      */
     public function update(User $user, Post $post)
     {
@@ -308,7 +308,7 @@ So far, we have only examined policy methods that return simple boolean values. 
                     : Response::deny('You do not own this post.');
     }
 
-When returning an authorization response from your policy, the `Gate::allows` method will still return a simple boolean value; however, you may use use the `Gate::inspect` method to get the full authorization response returned by the gate:
+When returning an authorization response from your policy, the `Gate::allows` method will still return a simple boolean value; however, you may use the `Gate::inspect` method to get the full authorization response returned by the gate:
 
     $response = Gate::inspect('update', $post);
 
@@ -365,7 +365,7 @@ By default, all gates and policies automatically return `false` if the incoming 
          */
         public function update(?User $user, Post $post)
         {
-            return $user->id === $post->user_id;
+            return optional($user)->id === $post->user_id;
         }
     }
 
@@ -527,9 +527,9 @@ When writing Blade templates, you may wish to display a portion of the page only
     @endcan
 
     @cannot('update', $post)
-        <!-- The Current User Can't Update The Post -->
+        <!-- The Current User Cannot Update The Post -->
     @elsecannot('create', App\Post::class)
-        <!-- The Current User Can't Create New Post -->
+        <!-- The Current User Cannot Create A New Post -->
     @endcannot
 
 These directives are convenient shortcuts for writing `@if` and `@unless` statements. The `@can` and `@cannot` statements above respectively translate to the following statements:
@@ -539,7 +539,7 @@ These directives are convenient shortcuts for writing `@if` and `@unless` statem
     @endif
 
     @unless (Auth::user()->can('update', $post))
-        <!-- The Current User Can't Update The Post -->
+        <!-- The Current User Cannot Update The Post -->
     @endunless
 
 You may also determine if a user has any authorization ability from a given list of abilities. To accomplish this, use the `@canany` directive:
@@ -577,7 +577,7 @@ When authorizing actions using policies, you may pass an array as the second arg
      */
     public function update(User $user, Post $post, int $category)
     {
-        return $user->id === $post->user_id && 
+        return $user->id === $post->user_id &&
                $category > 3;
     }
 

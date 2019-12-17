@@ -65,6 +65,12 @@ This command should be used on fresh applications and will install a layout view
 
 > {tip} If your application doesn’t need registration, you may disable it by removing the newly created `RegisterController` and modifying your route declaration: `Auth::routes(['register' => false]);`.
 
+#### Creating Applications Including Authentication
+
+If you are starting a brand new application and would like to include the authentication scaffolding, you may use the `--auth` directive when creating your application. This command will create a new application with all of the authentication scaffolding compiled and installed:
+
+    laravel new blog --auth
+
 <a name="included-views"></a>
 ### Views
 
@@ -79,20 +85,9 @@ Now that you have routes and views setup for the included authentication control
 
 #### Path Customization
 
-When a user is successfully authenticated, they will be redirected to the `/home` URI. You can customize the post-authentication redirect location by defining a `redirectTo` property on the `LoginController`, `RegisterController`, `ResetPasswordController`, and `VerificationController`:
+When a user is successfully authenticated, they will be redirected to the `/home` URI. You can customize the post-authentication redirect path using the `HOME` constant defined in your `RouteServiceProvider`:
 
-    protected $redirectTo = '/';
-
-Next, you should modify the `RedirectIfAuthenticated` middleware's `handle` method to use your new URI when redirecting the user.
-
-If the redirect path needs custom generation logic you may define a `redirectTo` method instead of a `redirectTo` property:
-
-    protected function redirectTo()
-    {
-        return '/path';
-    }
-
-> {tip} The `redirectTo` method will take precedence over the `redirectTo` property.
+    public const HOME = '/home';
 
 #### Username Customization
 
@@ -292,6 +287,14 @@ The guard name passed to the `guard` method should correspond to one of the guar
 To log users out of your application, you may use the `logout` method on the `Auth` facade. This will clear the authentication information in the user's session:
 
     Auth::logout();
+
+Laravel also provides methods to log a user out of the application only on their current device, or to log a user out of the application on their other devices:
+
+    Auth::logoutCurrentDevice();
+
+    Auth::logoutOtherDevices();
+
+> {note} Before using the `logoutOtherDevices` method, ensure that the `Illuminate\Session\Middleware\AuthenticateSession::class` middleware is present and active on your HTTP kernel's `web` [middleware group](/docs/{{version}}/middleware#middleware-groups).
 
 <a name="remembering-users"></a>
 ### Remembering Users

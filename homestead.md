@@ -490,7 +490,7 @@ Minio is an open source object storage server with an Amazon S3 compatible API. 
 
     minio: true
 
-By default, Minio is available on port 9600. You may access the Minio control panel by visiting `http://homestead:9600/`. The default access key is `homestead`, while the default secret key is `secretkey`. When accessing Minio, you should always use region `us-east-1`.
+By default, Minio is available on port 9600. You may access the Minio control panel by visiting `http://localhost:9600/`. The default access key is `homestead`, while the default secret key is `secretkey`. When accessing Minio, you should always use region `us-east-1`.
 
 In order to use Minio you will need to adjust the S3 disk configuration in your `config/filesystems.php` configuration file. You will need to add the `use_path_style_endpoint` option to the disk configuration, as well as change the `url` key to `endpoint`:
 
@@ -509,7 +509,7 @@ Finally, ensure your `.env` file has the following options:
     AWS_ACCESS_KEY_ID=homestead
     AWS_SECRET_ACCESS_KEY=secretkey
     AWS_DEFAULT_REGION=us-east-1
-    AWS_URL=http://homestead:9600
+    AWS_URL=http://localhost:9600
 
 To provision buckets, add a `buckets` directive to your Homestead configuration file:
 
@@ -567,7 +567,7 @@ After running the command, you will see an Ngrok screen appear which contains th
 <a name="multiple-php-versions"></a>
 ### Multiple PHP Versions
 
-Homestead 6 introduced support for multiple versions of PHP on the same virtual machine. You may specify which version of PHP to use for a given site within your `Homestead.yaml` file. The available PHP versions are: "5.6", "7.0", "7.1", "7.2" and "7.3" (the default):
+Homestead 6 introduced support for multiple versions of PHP on the same virtual machine. You may specify which version of PHP to use for a given site within your `Homestead.yaml` file. The available PHP versions are: "5.6", "7.0", "7.1", "7.2", "7.3", and "7.4" (the default):
 
     sites:
         - map: homestead.test
@@ -581,6 +581,7 @@ In addition, you may use any of the supported PHP versions via the CLI:
     php7.1 artisan list
     php7.2 artisan list
     php7.3 artisan list
+    php7.4 artisan list
 
 You may also update the default CLI version by issuing the following commands from within your Homestead virtual machine:
 
@@ -589,6 +590,7 @@ You may also update the default CLI version by issuing the following commands fr
     php71
     php72
     php73
+    php74
 
 <a name="web-servers"></a>
 ### Web Servers
@@ -623,7 +625,7 @@ To debug a PHP CLI application, use the `xphp` shell alias inside your Vagrant b
 
 #### Autostarting Xdebug
 
-When debugging functional tests that make requests to the web server, it is easier to autostart debugging rather than modifying tests to pass through a custom header or cookie to trigger debugging. To force Xdebug to start automatically, modify `/etc/php/7.#/fpm/conf.d/20-xdebug.ini` inside your Vagrant box and add the following configuration:
+When debugging functional tests that make requests to the web server, it is easier to autostart debugging rather than modifying tests to pass through a custom header or cookie to trigger debugging. To force Xdebug to start automatically, modify `/etc/php/7.x/fpm/conf.d/20-xdebug.ini` inside your Vagrant box and add the following configuration:
 
     ; If Homestead.yml contains a different subnet for the IP address, this address may be different...
     xdebug.remote_host = 192.168.10.1

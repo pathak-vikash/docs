@@ -863,7 +863,7 @@ Eloquent models fire several events, allowing you to hook into the following poi
 
 The `retrieved` event will fire when an existing model is retrieved from the database. When a new model is saved for the first time, the `creating` and `created` events will fire. If a model already existed in the database and the `save` method is called, the `updating` / `updated` events will fire. However, in both cases, the `saving` / `saved` events will fire.
 
-> {note} When issuing a mass update via Eloquent, the `saved` and `updated` model events will not be fired for the updated models. This is because the models are never actually retrieved when issuing a mass update.
+> {note} When issuing a mass update or delete via Eloquent, the `saved`, `updated`, `deleting`, and `deleted` model events will not be fired for the affected models. This is because the models are never actually retrieved when issuing a mass update or delete.
 
 To get started, define a `$dispatchesEvents` property on your Eloquent model that maps various points of the Eloquent model's lifecycle to your own [event classes](/docs/{{version}}/events):
 
@@ -940,6 +940,17 @@ This command will place the new observer in your `App/Observers` directory. If t
          * @return void
          */
         public function deleted(User $user)
+        {
+            //
+        }
+
+        /**
+         * Handle the User "forceDeleted" event.
+         *
+         * @param  \App\User  $user
+         * @return void
+         */
+        public function forceDeleted(User $user)
         {
             //
         }

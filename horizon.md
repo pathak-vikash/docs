@@ -22,6 +22,15 @@ All of your worker configuration is stored in a single, simple configuration fil
 <img src="https://res.cloudinary.com/dtfbvvkyp/image/upload/v1537195039/photos/Test.png" width="600" height="481">
 </p>
 
+<a name="upgrading"></a>
+## Upgrading Horizon
+
+When upgrading to a new major version of Horizon, it's important that you carefully review [the upgrade guide](https://github.com/laravel/horizon/blob/master/UPGRADE.md).
+
+In addition, you should re-publish Horizon's assets:
+
+    php artisan horizon:assets
+
 <a name="installation"></a>
 ## Installation
 
@@ -34,21 +43,6 @@ You may use Composer to install Horizon into your Laravel project:
 After installing Horizon, publish its assets using the `horizon:install` Artisan command:
 
     php artisan horizon:install
-
-You should also create the `failed_jobs` table which Laravel will use to store any [failed queue jobs](/docs/{{version}}/queues#dealing-with-failed-jobs):
-
-    php artisan queue:failed-table
-
-    php artisan migrate
-
-<a name="upgrading"></a>
-#### Upgrading Horizon
-
-When upgrading to a new major version of Horizon, it's important that you carefully review [the upgrade guide](https://github.com/laravel/horizon/blob/master/UPGRADE.md).
-
-In addition, you should re-publish Horizon's assets:
-
-    php artisan horizon:assets
 
 <a name="configuration"></a>
 ### Configuration

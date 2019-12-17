@@ -81,7 +81,7 @@ When using Channels and [Laravel Echo](#installing-laravel-echo), you should spe
 
 #### Redis
 
-If you are using the Redis broadcaster, you should install the Predis library:
+If you are using the Redis broadcaster, you should either install the phpredis PHP extension via PECL or install the Predis library via Composer:
 
     composer require predis/predis
 
@@ -370,7 +370,7 @@ Just like HTTP routes, channel routes may also take advantage of implicit and ex
 
 Private and presence broadcast channels authenticate the current user via your application's default authentication guard. If the user is not authenticated, channel authorization is automatically denied and the authorization callback is never executed. However, you may assign multiple, custom guards that should authenticate the incoming request if necessary:
 
-    Broadcast::channel('channel', function() {
+    Broadcast::channel('channel', function () {
         // ...
     }, ['guards' => ['web', 'admin']]);
 

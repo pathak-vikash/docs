@@ -39,7 +39,7 @@
     - [Codeship](#running-tests-on-codeship)
     - [Heroku CI](#running-tests-on-heroku-ci)
     - [Travis CI](#running-tests-on-travis-ci)
-    - [GitHub Actions](#running-tests-on-github-actions)    
+    - [GitHub Actions](#running-tests-on-github-actions)
 
 <a name="introduction"></a>
 ## Introduction
@@ -247,6 +247,10 @@ You may use the `resize` method to adjust the size of the browser window:
 The `maximize` method may be used to maximize the browser window:
 
     $browser->maximize();
+
+The `fitContent` method will resize the browser window to match the size of the content:
+
+    $browser->fitContent();
 
 <a name="browser-macros"></a>
 ### Browser Macros
@@ -477,7 +481,7 @@ Dusk provides various methods to interact with JavaScript Dialogs:
 
     // Wait for a dialog to appear:
     $browser->waitForDialog($seconds = null);
-    
+
     // Assert that a dialog has been displayed and that its message matches the given value:
     $browser->assertDialogOpened('value');
 
@@ -1306,6 +1310,7 @@ As shown above, a "date picker" is an example of a component that might exist th
         {
             return [
                 '@date-field' => 'input.datepicker-input',
+                '@year-list' => 'div > div.datepicker-years',
                 '@month-list' => 'div > div.datepicker-months',
                 '@day-list' => 'div > div.datepicker-days',
             ];
@@ -1315,13 +1320,17 @@ As shown above, a "date picker" is an example of a component that might exist th
          * Select the given date.
          *
          * @param  \Laravel\Dusk\Browser  $browser
+         * @param  int  $year
          * @param  int  $month
          * @param  int  $day
          * @return void
          */
-        public function selectDate($browser, $month, $day)
+        public function selectDate($browser, $year, $month, $day)
         {
             $browser->click('@date-field')
+                    ->within('@year-list', function ($browser) use ($year) {
+                        $browser->click($year);
+                    });
                     ->within('@month-list', function ($browser) use ($month) {
                         $browser->click($month);
                     })
@@ -1357,7 +1366,7 @@ Once the component has been defined, we can easily select a date within the date
             $this->browse(function (Browser $browser) {
                 $browser->visit('/')
                         ->within(new DatePicker, function ($browser) {
-                            $browser->selectDate(1, 2018);
+                            $browser->selectDate(2019, 1, 30);
                         })
                         ->assertSee('January');
             });
@@ -1366,6 +1375,8 @@ Once the component has been defined, we can easily select a date within the date
 
 <a name="continuous-integration"></a>
 ## Continuous Integration
+
+> {note} Before adding a continous integration configuration file, ensure that your `.env.testing` file contains an `APP_URL` entry with a value of `http://127.0.0.1:8000`.
 
 <a name="running-tests-on-circle-ci"></a>
 ### CircleCI
@@ -1379,24 +1390,26 @@ If you are using CircleCI to run your Dusk tests, you may use this configuration
                 - run: sudo apt-get install -y libsqlite3-dev
                 - run: cp .env.testing .env
                 - run: composer install -n --ignore-platform-reqs
+                - run: php artisan key:generate
+                - run: php artisan dusk:chrome-driver
                 - run: npm install
                 - run: npm run production
                 - run: vendor/bin/phpunit
-       
+
                 - run:
                     name: Start Chrome Driver
                     command: ./vendor/laravel/dusk/bin/chromedriver-linux
                     background: true
-       
+
                 - run:
                     name: Run Laravel Server
                     command: php artisan serve
                     background: true
-       
+
                 - run:
                     name: Run Laravel Dusk Tests
                     command: php artisan dusk
-                    
+
                 - store_artifacts:
                     path: tests/Browser/screenshots
 
@@ -1411,6 +1424,7 @@ To run Dusk tests on [Codeship](https://codeship.com), add the following command
     mkdir -p ./bootstrap/cache
     composer install --no-interaction --prefer-dist
     php artisan key:generate
+    php artisan dusk:chrome-driver
     nohup bash -c "php artisan serve 2>&1 &" && sleep 5
     php artisan dusk
 
@@ -1451,6 +1465,7 @@ To run your Dusk tests on [Travis CI](https://travis-ci.org), use the following 
       - cp .env.testing .env
       - travis_retry composer install --no-interaction --prefer-dist --no-suggest
       - php artisan key:generate
+      - php artisan dusk:chrome-driver
 
     before_script:
       - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
@@ -1458,7 +1473,7 @@ To run your Dusk tests on [Travis CI](https://travis-ci.org), use the following 
 
     script:
       - php artisan dusk
-      
+
 <a name="running-tests-on-github-actions"></a>
 ### GitHub Actions
 
@@ -1488,8 +1503,3 @@ If you are using [Github Actions](https://github.com/features/actions) to run yo
             run: php artisan serve > /dev/null 2>&1 &
           - name: Run Dusk Tests
             run: php artisan dusk
-
-
-In your `.env.testing` file, adjust the value of `APP_URL`:
-
-    APP_URL=http://127.0.0.1:8000

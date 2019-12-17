@@ -24,6 +24,7 @@
 - [Localization `Lang::getFromJson` Method](#get-from-json)
 - [Queue Retry Limit](#queue-retry-limit)
 - [Resend Email Verification Route](#email-verification-route)
+- [Email Verification Route Change](#email-verification-route-change)
 - [The `Input` Facade](#the-input-facade)
 </div>
 
@@ -72,13 +73,28 @@ The constructor signature of the `Illuminate\Auth\Access\Response` class has cha
      */
     public function __construct($allowed, $message = '', $code = null)
 
+#### Returning "Deny" Responses
+
+**Likelihood Of Impact: Low**
+
+In previous releases of Laravel, you did not need to return the value of the `deny` method from your policy methods since an exception was thrown immediately. However, in accordance with the Laravel documentation, you must now return the value of the `deny` method from your policies:
+
+    public function update(User $user, Post $post)
+    {
+        if (! $user->role->isEditor()) {
+            return $this->deny("You must be an editor to edit this post.")
+        }
+
+        return $user->id === $post->user_id;
+    }
+
 <a name="auth-access-gate-contract"></a>
 #### The `Illuminate\Contracts\Auth\Access\Gate` Contract
 
 **Likelihood Of Impact: Low**
 
 The `Illuminate\Contracts\Auth\Access\Gate` contract has received a new `inspect` method. If you are implementing this interface manually, you should add this method to your implementation.
-
+    
 ### Carbon
 
 <a name="carbon-support"></a>
@@ -203,6 +219,13 @@ To prevent possible CSRF attacks, the `email/resend` route registered by the rou
 
 A new `getEmailForVerification` method has been added to the `Illuminate\Contracts\Auth\MustVerifyEmail` contract. If you are manually implementing this contract, you should implement this method. This method should return the object's associated email address. If your `App\User` model is using the `Illuminate\Auth\MustVerifyEmail` trait, no changes are required, as this trait implements this method for you.
 
+<a name="email-verification-route-change"></a>
+#### Email Verification Route Change
+
+**Likelihood Of Impact: Medium**
+
+The route path for verifying emails has changed from `/email/verify/{id}` to `/email/verify/{id}/{hash}`. Any email verification emails that were sent prior to upgrading to Laravel 6.x will not longer be valid and will display a 404 page. If you wish, you may define a route matching the old verification URL path and display an informative message for your users that asks them to re-verify their email address.
+
 <a name="helpers"></a>
 ### Helpers
 
@@ -318,6 +341,16 @@ In previous releases of Laravel, passing associative array parameters to the `ro
 
     // Laravel 6.0: http://example.com/profile?status=active
     echo route('profile', ['status' => 'active']);    
+
+The `action` helper and `URL::action` method are also affected by this change:
+
+    Route::get('/profile/{id}', 'ProfileController@show');
+
+    // Laravel 5.8: http://example.com/profile/1
+    echo action('ProfileController@show', ['profile' => 1]);
+
+    // Laravel 6.0: http://example.com/profile?profile=1
+    echo action('ProfileController@show', ['profile' => 1]);   
 
 ### Validation
 

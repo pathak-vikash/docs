@@ -13,6 +13,7 @@
 - [Custom Valet Drivers](#custom-valet-drivers)
     - [Local Drivers](#local-drivers)
 - [Other Valet Commands](#other-valet-commands)
+- [Valet Directories & Files](#valet-directories-and-files)
 
 <a name="introduction"></a>
 ## Introduction
@@ -74,7 +75,7 @@ Both Valet and Homestead are great choices for configuring your Laravel developm
 
 <div class="content-list" markdown="1">
 - Install or update [Homebrew](https://brew.sh/) to the latest version using `brew update`.
-- Install PHP 7.3 using Homebrew via `brew install php`.
+- Install PHP 7.4 using Homebrew via `brew install php`.
 - Install [Composer](https://getcomposer.org).
 - Install Valet with Composer via `composer global require laravel/valet`. Make sure the `~/.composer/vendor/bin` directory is in your system's "PATH".
 - Run the `valet install` command. This will configure and install Valet and DnsMasq, and register Valet's daemon to launch when your system starts.
@@ -102,28 +103,16 @@ Valet allows you to switch PHP versions using the `valet use php@version` comman
 
     valet use php
 
+> {note} Valet only serves one PHP version at a time, even if you have multiple PHP versions installed.
+
+#### Resetting Your Installation
+
+If you are having trouble getting your Valet installation to run properly, executing the `composer global update` command followed by `valet install` will reset your installation and can solve a variety of problems. In rare cases it may be necessary to "hard reset" Valet by executing `valet uninstall --force` followed by `valet install`.
+
 <a name="upgrading"></a>
 ### Upgrading
 
 You may update your Valet installation using the `composer global update` command in your terminal. After upgrading, it is good practice to run the `valet install` command so Valet can make additional upgrades to your configuration files if necessary.
-
-#### Upgrading To Valet 2.0
-
-Valet 2.0 transitions Valet's underlying web server from Caddy to Nginx. Before upgrading to this version you should run the following commands to stop and uninstall the existing Caddy daemon:
-
-    valet stop
-    valet uninstall
-
-Next, you should upgrade to the latest version of Valet. Depending on how you installed Valet, this is typically done through Git or Composer. If you installed Valet via Composer, you should use the following command to update to the latest major version:
-
-    composer global require laravel/valet
-
-Once the fresh Valet source code has been downloaded, you should run the `install` command:
-
-    valet install
-    valet restart
-
-After upgrading, it may be necessary to re-park or re-link your sites.
 
 <a name="serving-sites"></a>
 ## Serving Sites
@@ -131,7 +120,7 @@ After upgrading, it may be necessary to re-park or re-link your sites.
 Once Valet is installed, you're ready to start serving sites. Valet provides two commands to help you serve your Laravel sites: `park` and `link`.
 
 <a name="the-park-command"></a>
-**The `park` Command**
+#### The `park` Command
 
 <div class="content-list" markdown="1">
 - Create a new directory on your Mac by running something like `mkdir ~/Sites`. Next, `cd ~/Sites` and run `valet park`. This command will register your current working directory as a path that Valet should search for sites.
@@ -142,7 +131,7 @@ Once Valet is installed, you're ready to start serving sites. Valet provides two
 **That's all there is to it.** Now, any Laravel project you create within your "parked" directory will automatically be served using the `http://folder-name.test` convention.
 
 <a name="the-link-command"></a>
-**The `link` Command**
+#### The `link` Command
 
 The `link` command may also be used to serve your Laravel sites. This command is useful if you want to serve a single site in a directory and not the entire directory.
 
@@ -156,7 +145,7 @@ To see a listing of all of your linked directories, run the `valet links` comman
 > {tip} You can use `valet link` to serve the same project from multiple (sub)domains. To add a subdomain or another domain to your project run `valet link subdomain.app-name` from the project folder.
 
 <a name="securing-sites"></a>
-**Securing Sites With TLS**
+#### Securing Sites With TLS
 
 By default, Valet serves sites over plain HTTP. However, if you would like to serve a site over encrypted TLS using HTTP/2, use the `secure` command. For example, if your site is being served by Valet on the `laravel.test` domain, you should run the following command to secure it:
 
@@ -302,4 +291,28 @@ Command  | Description
 `valet start` | Start the Valet daemon.
 `valet stop` | Stop the Valet daemon.
 `valet trust` | Add sudoers files for Brew and Valet to allow Valet commands to be run without prompting for passwords.
-`valet uninstall` | Uninstall the Valet daemon.
+`valet uninstall` | Uninstall Valet: Shows instructions for manual uninstall; or pass the `--force` parameter to aggressively delete all of Valet.
+
+<a name="valet-directories-and-files"></a>
+## Valet Directories & Files
+
+You may find the following directory and file information helpful while troubleshooting issues with your Valet environment:
+
+File / Path | Description
+--------- | -----------
+`~/.config/valet/` | Contains all of Valet's configuration. You may wish to maintain a backup of this folder.
+`~/.config/valet/dnsmasq.d/` | Contains DNSMasq's configuration.
+`~/.config/valet/Drivers/` | Contains custom Valet drivers.
+`~/.config/valet/Extensions/` | Contains custom Valet extensions / commands.
+`~/.config/valet/Nginx/` | Contains all Valet generated Nginx site configurations. These files are rebuilt when running the `install`, `secure`, and `tld` commands.
+`~/.config/valet/Sites/` | Contains all symbolic links for linked projects.
+`~/.config/valet/config.json` | Valet's master configuration file
+`~/.config/valet/valet.sock` | The PHP-FPM socket used by Valet's Nginx configuration. This will only exist if PHP is running properly.
+`~/.config/valet/Log/fpm-php.www.log` | User log for PHP errors.
+`~/.config/valet/Log/nginx-error.log` | User log for Nginx errors.
+`/usr/local/var/log/php-fpm.log` | System log for PHP-FPM errors.
+`/usr/local/var/log/nginx` | Contains Nginx access and error logs.
+`/usr/local/etc/php/X.X/conf.d` | Contains `*.ini` files for various PHP configuration settings.
+`/usr/local/etc/php/X.X/php-fpm.d/valet-fpm.conf` | PHP-FPM pool configuration file.
+`~/.composer/vendor/laravel/valet/cli/stubs/secure.valet.conf` | The default Nginx configuration used for building site certificates.
+

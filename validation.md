@@ -377,7 +377,7 @@ After checking if the request validation failed, you may use the `withErrors` me
 <a name="automatic-redirection"></a>
 ### Automatic Redirection
 
-If you would like to create a validator instance manually but still take advantage of the automatic redirection offered by the requests's `validate` method, you may call the `validate` method on an existing validator instance. If validation fails, the user will automatically be redirected or, in the case of an AJAX request, a JSON response will be returned:
+If you would like to create a validator instance manually but still take advantage of the automatic redirection offered by the request's `validate` method, you may call the `validate` method on an existing validator instance. If validation fails, the user will automatically be redirected or, in the case of an AJAX request, a JSON response will be returned:
 
     Validator::make($request->all(), [
         'title' => 'required|unique:posts|max:255',
@@ -620,7 +620,7 @@ The field under validation must be _yes_, _on_, _1_, or _true_. This is useful f
 <a name="rule-active-url"></a>
 #### active_url
 
-The field under validation must have a valid A or AAAA record according to the `dns_get_record` PHP function.
+The field under validation must have a valid A or AAAA record according to the `dns_get_record` PHP function. The hostname of the provided URL is extracted using the `parse_url` PHP function before being passed to `dns_get_record`.
 
 <a name="rule-after"></a>
 #### after:_date_
@@ -716,7 +716,7 @@ The field under validation must be _numeric_ and must have an exact length of _v
 <a name="rule-digits-between"></a>
 #### digits_between:_min_,_max_
 
-The field under validation must have a length between the given _min_ and _max_.
+The field under validation must be _numeric_ and must have a length between the given _min_ and _max_.
 
 <a name="rule-dimensions"></a>
 #### dimensions
@@ -792,6 +792,10 @@ Occasionally, you may need to specify a specific database connection to be used 
 
     'email' => 'exists:connection.staff,email'
 
+Instead of specifying the table name directly, you may specify the Eloquent model which should be used to determine the table name:
+
+    'user_id' => 'exists:App\User,id'
+
 If you would like to customize the query executed by the validation rule, you may use the `Rule` class to fluently define the rule. In this example, we'll also specify the validation rules as an array instead of using the `|` character to delimit them:
 
     use Illuminate\Validation\Rule;
@@ -818,12 +822,12 @@ The field under validation must not be empty when it is present.
 <a name="rule-gt"></a>
 #### gt:_field_
 
-The field under validation must be greater than the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the `size` rule.
+The field under validation must be greater than the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [`size`](#rule-size) rule.
 
 <a name="rule-gte"></a>
 #### gte:_field_
 
-The field under validation must be greater than or equal to the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the `size` rule.
+The field under validation must be greater than or equal to the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [`size`](#rule-size) rule.
 
 <a name="rule-image"></a>
 #### image
@@ -877,12 +881,12 @@ The field under validation must be a valid JSON string.
 <a name="rule-lt"></a>
 #### lt:_field_
 
-The field under validation must be less than the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the `size` rule.
+The field under validation must be less than the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [`size`](#rule-size) rule.
 
 <a name="rule-lte"></a>
 #### lte:_field_
 
-The field under validation must be less than or equal to the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the `size` rule.
+The field under validation must be less than or equal to the given _field_. The two fields must be of the same type. Strings, numerics, arrays, and files are evaluated using the same conventions as the [`size`](#rule-size) rule.
 
 <a name="rule-max"></a>
 #### max:_value_
@@ -1058,7 +1062,11 @@ The field under validation must be a valid timezone identifier according to the 
 
 The field under validation must not exist within the given database table.
 
-**Specifying A Custom Column Name:**
+**Specifying A Custom Table / Column Name:**
+
+Instead of specifying the table name directly, you may specify the Eloquent model which should be used to determine the table name:
+
+    'email' => 'unique:App\User,email_address'
 
 The `column` option may be used to specify the field's corresponding database column. If the `column` option is not specified, the field name will be used.
 

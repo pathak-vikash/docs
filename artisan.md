@@ -33,13 +33,25 @@ Every command also includes a "help" screen which displays and describes the com
 <a name="tinker"></a>
 ### Tinker (REPL)
 
-All Laravel applications include Tinker, a REPL powered by the [PsySH](https://github.com/bobthecow/psysh) package. Tinker allows you to interact with your entire Laravel application on the command line, including the Eloquent ORM, jobs, events, and more. To enter the Tinker environment, run the `tinker` Artisan command:
+Laravel Tinker is a powerful REPL for the Laravel framework, powered by the [PsySH](https://github.com/bobthecow/psysh) package.
+
+#### Installation
+
+All Laravel applications include Tinker by default. However, you may install it manually if needed using Composer:
+
+    composer require laravel/tinker
+
+#### Usage
+
+Tinker allows you to interact with your entire Laravel application on the command line, including the Eloquent ORM, jobs, events, and more. To enter the Tinker environment, run the `tinker` Artisan command:
 
     php artisan tinker
 
 You can publish Tinker's configuration file using the `vendor:publish` command:
 
     php artisan vendor:publish --provider="Laravel\Tinker\TinkerServiceProvider"
+
+> {note} The `dispatch` helper function and `dispatch` method on the `Dispatchable` class depends on garbage collection to place the job on the queue. Therefore, when using tinker, you should use `Bus::dispatch` or `Queue::push` to dispatch jobs.
 
 #### Command Whitelist
 
@@ -331,6 +343,12 @@ If you need to ask the user for a simple confirmation, you may use the `confirm`
 The `anticipate` method can be used to provide auto-completion for possible choices. The user can still choose any answer, regardless of the auto-completion hints:
 
     $name = $this->anticipate('What is your name?', ['Taylor', 'Dayle']);
+
+Alternatively, you may pass a Closure as the second argument to the `anticipate` method. The Closure will be called each time the user types an input character. The Closure should accept a string parameter containing the user's input so far, and return an array of options for auto-completion:
+
+    $name = $this->anticipate('What is your name?', function ($input) {
+        // Return auto-completion options...
+    });
 
 #### Multiple Choice Questions
 
