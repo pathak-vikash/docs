@@ -43,7 +43,9 @@ To obtain an instance of the current HTTP request via dependency injection, you 
 
 If your controller method is also expecting input from a route parameter you should list your route parameters after your other dependencies. For example, if your route is defined like so:
 
-    Route::put('user/{id}', 'UserController@update');
+    use App\Http\Controllers\UserController;
+
+    Route::put('user/{id}', [UserController::class, 'update']);
 
 You may still type-hint the `Illuminate\Http\Request` and access your route parameter `id` by defining your controller method as follows:
 
@@ -121,7 +123,7 @@ The `method` method will return the HTTP verb for the request. You may use the `
 The [PSR-7 standard](https://www.php-fig.org/psr/psr-7/) specifies interfaces for HTTP messages, including requests and responses. If you would like to obtain an instance of a PSR-7 request instead of a Laravel request, you will first need to install a few libraries. Laravel uses the *Symfony HTTP Message Bridge* component to convert typical Laravel requests and responses into PSR-7 compatible implementations:
 
     composer require symfony/psr-http-message-bridge
-    composer require zendframework/zend-diactoros
+    composer require nyholm/psr7
 
 Once you have installed these libraries, you may obtain a PSR-7 request by type-hinting the request interface on your route Closure or controller method:
 
@@ -196,6 +198,12 @@ When using dynamic properties, Laravel will first look for the parameter's value
 When sending JSON requests to your application, you may access the JSON data via the `input` method as long as the `Content-Type` header of the request is properly set to `application/json`. You may even use "dot" syntax to dig into JSON arrays:
 
     $name = $request->input('user.name');
+
+#### Retrieving Boolean Input Values
+
+When dealing with HTML elements like checkboxes, your application may receive "truthy" values that are actually strings. For example, "true" or "on". For convenience, you may use the `boolean` method to retrieve these values as booleans. The `boolean` method returns `true` for 1, "1", true, "true", "on", and "yes". All other values will return `false`:
+
+    $archived = $request->boolean('archived');
 
 #### Retrieving A Portion Of The Input Data
 
@@ -290,7 +298,7 @@ All cookies created by the Laravel framework are encrypted and signed with an au
     $value = $request->cookie('name');
 
 Alternatively, you may use the `Cookie` facade to access cookie values:
-    
+
     use Illuminate\Support\Facades\Cookie;
 
     $value = Cookie::get('name');
@@ -322,6 +330,18 @@ If you would like to generate a `Symfony\Component\HttpFoundation\Cookie` instan
     $cookie = cookie('name', 'value', $minutes);
 
     return response('Hello World')->cookie($cookie);
+
+#### Expiring Cookies Early
+
+You may remove a cookie by expiring it via the `forget` method of the `Cookie` facade:
+
+    Cookie::queue(Cookie::forget('name'));
+
+Alternatively, you may attach the expired cookie to a response instance:
+
+    $cookie = Cookie::forget('name');
+
+    return response('Hello World')->withCookie($cookie);
 
 <a name="files"></a>
 ## Files
@@ -359,7 +379,7 @@ The `UploadedFile` class also contains methods for accessing the file's fully-qu
 
 #### Other File Methods
 
-There are a variety of other methods available on `UploadedFile` instances. Check out the [API documentation for the class](https://api.symfony.com/3.0/Symfony/Component/HttpFoundation/File/UploadedFile.html) for more information regarding these methods.
+There are a variety of other methods available on `UploadedFile` instances. Check out the [API documentation for the class](https://api.symfony.com/master/Symfony/Component/HttpFoundation/File/UploadedFile.html) for more information regarding these methods.
 
 <a name="storing-uploaded-files"></a>
 ### Storing Uploaded Files
@@ -399,7 +419,7 @@ To solve this, you may use the `App\Http\Middleware\TrustProxies` middleware tha
         /**
          * The trusted proxies for this application.
          *
-         * @var array
+         * @var string|array
          */
         protected $proxies = [
             '192.168.1.1',
@@ -409,7 +429,7 @@ To solve this, you may use the `App\Http\Middleware\TrustProxies` middleware tha
         /**
          * The headers that should be used to detect proxies.
          *
-         * @var string
+         * @var int
          */
         protected $headers = Request::HEADER_X_FORWARDED_ALL;
     }
@@ -423,6 +443,6 @@ If you are using Amazon AWS or another "cloud" load balancer provider, you may n
     /**
      * The trusted proxies for this application.
      *
-     * @var array
+     * @var string|array
      */
     protected $proxies = '*';

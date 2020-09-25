@@ -22,7 +22,7 @@ Laravel provides several helpers to assist you in generating URLs for your appli
 
 The `url` helper may be used to generate arbitrary URLs for your application. The generated URL will automatically use the scheme (HTTP or HTTPS) and host from the current request:
 
-    $post = App\Post::find(1);
+    $post = App\Models\Post::find(1);
 
     echo url("/posts/{$post->id}");
 
@@ -132,11 +132,7 @@ Once you have registered the middleware in your kernel, you may attach it to a r
 <a name="urls-for-controller-actions"></a>
 ## URLs For Controller Actions
 
-The `action` function generates a URL for the given controller action. You do not need to pass the full namespace of the controller. Instead, pass the controller class name relative to the `App\Http\Controllers` namespace:
-
-    $url = action('HomeController@index');
-
-You may also reference actions with a "callable" array syntax:
+The `action` function generates a URL for the given controller action:
 
     use App\Http\Controllers\HomeController;
 
@@ -144,7 +140,7 @@ You may also reference actions with a "callable" array syntax:
 
 If the controller method accepts route parameters, you may pass them as the second argument to the function:
 
-    $url = action('UserController@profile', ['id' => 1]);
+    $url = action([UserController::class, 'profile'], ['id' => 1]);
 
 <a name="default-values"></a>
 ## Default Values
@@ -175,3 +171,23 @@ It is cumbersome to always pass the `locale` every time you call the `route` hel
     }
 
 Once the default value for the `locale` parameter has been set, you are no longer required to pass its value when generating URLs via the `route` helper.
+
+#### URL Defaults & Middleware Priority
+
+Setting URL default values can interfere with Laravel's handling of implicit model bindings. Therefore, you should [prioritize your middleware](https://laravel.com/docs/{{version}}/middleware#sorting-middleware) that set URL defaults to be executed before Laravel's own `SubstituteBindings` middleware. You can accomplish this by making sure your middleware occurs before the `SubstituteBindings` middleware within the `$middlewarePriority` property of your application's HTTP kernel.
+
+The `$middlewarePriority` property is defined in the base `Illuminate\Foundation\Http\Kernel` class. You may copy its definition from that class and overwrite it in your application's HTTP kernel in order to modify it:
+
+    /**
+     * The priority-sorted list of middleware.
+     *
+     * This forces non-global middleware to always be in the given order.
+     *
+     * @var array
+     */
+    protected $middlewarePriority = [
+        // ...
+         \App\Http\MiddlewareSetDefaultLocaleForUrls::class,
+         \Illuminate\Routing\Middleware\SubstituteBindings::class,
+         // ...
+    ];

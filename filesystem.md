@@ -43,6 +43,13 @@ Once a file has been stored and the symbolic link has been created, you can crea
 
     echo asset('storage/file.txt');
 
+You may configure additional symbolic links in your `filesystems` configuration file. Each of the configured links will be created when you run the `storage:link` command:
+
+    'links' => [
+        public_path('storage') => storage_path('app/public'),
+        public_path('images') => storage_path('app/images'),
+    ],
+
 <a name="the-local-driver"></a>
 ### The Local Driver
 
@@ -188,7 +195,9 @@ You may use the `url` method to get the URL for the given file. If you are using
 
     $url = Storage::url('file.jpg');
 
-> {note} Remember, if you are using the `local` driver, all files that should be publicly accessible should be placed in the `storage/app/public` directory. Furthermore, you should [create a symbolic link](#the-public-disk) at `public/storage` which points to the `storage/app/public` directory.
+When using the `local` driver, all files that should be publicly accessible should be placed in the `storage/app/public` directory. Furthermore, you should [create a symbolic link](#the-public-disk) at `public/storage` which points to the `storage/app/public` directory.
+
+> {note} When using the `local` driver, the return value of `url` is not URL encoded. For this reason, we recommend always storing your files using names that will create valid URLs.
 
 #### Temporary URLs
 
@@ -203,12 +212,15 @@ If you need to specify additional [S3 request parameters](https://docs.aws.amazo
     $url = Storage::temporaryUrl(
         'file.jpg',
         now()->addMinutes(5),
-        ['ResponseContentType' => 'application/octet-stream']
+        [
+            'ResponseContentType' => 'application/octet-stream',
+            'ResponseContentDisposition' => 'attachment; filename=file2.jpg',
+        ]
     );
 
-#### Local URL Host Customization
+#### URL Host Customization
 
-If you would like to pre-define the host for files stored on a disk using the `local` driver, you may add a `url` option to the disk's configuration array:
+If you would like to pre-define the host for file URLs generated using the `Storage` facade, you may add a `url` option to the disk's configuration array:
 
     'public' => [
         'driver' => 'local',
@@ -334,6 +346,24 @@ By default, this method will use your default disk. If you would like to specify
         'avatars/'.$request->user()->id, 's3'
     );
 
+If you are using the `storeAs` method, you may pass the disk name as the third argument to the method:
+
+    $path = $request->file('avatar')->storeAs(
+        'avatars',
+        $request->user()->id,
+        's3'
+    );
+
+#### Other File Information
+
+If you would like to get original name of the uploaded file, you may do so using the `getClientOriginalName` method:
+
+    $name = $request->file('avatar')->getClientOriginalName();
+
+The `extension` method may be used to get the file extension of the uploaded file:
+
+    $extension = $request->file('avatar')->extension();
+
 <a name="file-visibility"></a>
 ### File Visibility
 
@@ -350,6 +380,16 @@ If the file has already been stored, its visibility can be retrieved and set via
     $visibility = Storage::getVisibility('file.jpg');
 
     Storage::setVisibility('file.jpg', 'public');
+
+When interacting with uploaded files, you may use the `storePublicly` and `storePubliclyAs` methods to store the uploaded file with `public` visibility:
+
+    $path = $request->file('avatar')->storePublicly('avatars', 's3');
+
+    $path = $request->file('avatar')->storePubliclyAs(
+        'avatars',
+        $request->user()->id,
+        's3'
+    );
 
 <a name="deleting-files"></a>
 ## Deleting Files
@@ -373,7 +413,7 @@ If necessary, you may specify the disk that the file should be deleted from:
 
 #### Get All Files Within A Directory
 
-The `files` method returns an array of all of the files in a given directory. If you would like to retrieve a list of all files within a given directory including all sub-directories, you may use the `allFiles` method:
+The `files` method returns an array of all of the files in a given directory. If you would like to retrieve a list of all files within a given directory including all subdirectories, you may use the `allFiles` method:
 
     use Illuminate\Support\Facades\Storage;
 
@@ -383,7 +423,7 @@ The `files` method returns an array of all of the files in a given directory. If
 
 #### Get All Directories Within A Directory
 
-The `directories` method returns an array of all the directories within a given directory. Additionally, you may use the `allDirectories` method to get a list of all directories within a given directory and all of its sub-directories:
+The `directories` method returns an array of all the directories within a given directory. Additionally, you may use the `allDirectories` method to get a list of all directories within a given directory and all of its subdirectories:
 
     $directories = Storage::directories($directory);
 
@@ -392,7 +432,7 @@ The `directories` method returns an array of all the directories within a given 
 
 #### Create A Directory
 
-The `makeDirectory` method will create the given directory, including any needed sub-directories:
+The `makeDirectory` method will create the given directory, including any needed subdirectories:
 
     Storage::makeDirectory($directory);
 
@@ -417,11 +457,11 @@ Next, you should create a [service provider](/docs/{{version}}/providers) such a
 
     namespace App\Providers;
 
+    use Illuminate\Support\Facades\Storage;
     use Illuminate\Support\ServiceProvider;
     use League\Flysystem\Filesystem;
     use Spatie\Dropbox\Client as DropboxClient;
     use Spatie\FlysystemDropbox\DropboxAdapter;
-    use Storage;
 
     class DropboxServiceProvider extends ServiceProvider
     {

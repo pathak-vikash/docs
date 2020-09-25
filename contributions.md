@@ -18,7 +18,7 @@ To encourage active collaboration, Laravel strongly encourages pull requests, no
 
 However, if you file a bug report, your issue should contain a title and a clear description of the issue. You should also include as much relevant information as possible and a code sample that demonstrates the issue. The goal of a bug report is to make it easy for yourself - and others - to replicate the bug and develop a fix.
 
-Remember, bug reports are created in the hope that others with the same problem will be able to collaborate with you on solving it. Do not expect that the bug report will automatically see any activity or that others will jump to fix it. Creating a bug report serves to help yourself and others start on the path of fixing the problem.
+Remember, bug reports are created in the hope that others with the same problem will be able to collaborate with you on solving it. Do not expect that the bug report will automatically see any activity or that others will jump to fix it. Creating a bug report serves to help yourself and others start on the path of fixing the problem. If you want to chip in, you can help out by fixing [any bugs listed in our issue trackers](https://github.com/issues?q=is%3Aopen+is%3Aissue+label%3Abug+user%3Alaravel+-repo%3Alaravel%2Fnova-issues).
 
 The Laravel source code is managed on GitHub, and there are repositories for each of the Laravel projects:
 
@@ -26,13 +26,18 @@ The Laravel source code is managed on GitHub, and there are repositories for eac
 - [Laravel Application](https://github.com/laravel/laravel)
 - [Laravel Art](https://github.com/laravel/art)
 - [Laravel Documentation](https://github.com/laravel/docs)
-- [Laravel Cashier](https://github.com/laravel/cashier)
+- [Laravel Dusk](https://github.com/laravel/dusk)
+- [Laravel Cashier Stripe](https://github.com/laravel/cashier)
+- [Laravel Cashier Paddle](https://github.com/laravel/cashier-paddle)
+- [Laravel Echo](https://github.com/laravel/echo)
 - [Laravel Envoy](https://github.com/laravel/envoy)
 - [Laravel Framework](https://github.com/laravel/framework)
 - [Laravel Homestead](https://github.com/laravel/homestead)
 - [Laravel Homestead Build Scripts](https://github.com/laravel/settler)
 - [Laravel Horizon](https://github.com/laravel/horizon)
+- [Laravel Jetstream](https://github.com/laravel/jetstream)
 - [Laravel Passport](https://github.com/laravel/passport)
+- [Laravel Sanctum](https://github.com/laravel/sanctum)
 - [Laravel Scout](https://github.com/laravel/scout)
 - [Laravel Socialite](https://github.com/laravel/socialite)
 - [Laravel Telescope](https://github.com/laravel/telescope)
@@ -45,6 +50,7 @@ The Laravel source code is managed on GitHub, and there are repositories for eac
 Laravel's GitHub issue trackers are not intended to provide Laravel help or support. Instead, use one of the following channels:
 
 <div class="content-list" markdown="1">
+- [GitHub Discussions](https://github.com/laravel/framework/discussions)
 - [Laracasts Forums](https://laracasts.com/discuss)
 - [Laravel.io Forums](https://laravel.io/forum)
 - [StackOverflow](https://stackoverflow.com/questions/tagged/laravel)
@@ -65,7 +71,7 @@ Informal discussion regarding bugs, new features, and implementation of existing
 
 **All** bug fixes should be sent to the latest stable branch or to the [current LTS branch](/docs/{{version}}/releases#support-policy). Bug fixes should **never** be sent to the `master` branch unless they fix features that exist only in the upcoming release.
 
-**Minor** features that are **fully backwards compatible** with the current release may be sent to the latest stable branch.
+**Minor** features that are **fully backward compatible** with the current release may be sent to the latest stable branch.
 
 **Major** new features should always be sent to the `master` branch, which contains the upcoming release.
 
@@ -120,5 +126,5 @@ The Laravel code of conduct is derived from the Ruby code of conduct. Any violat
 - Participants will be tolerant of opposing views.
 - Participants must ensure that their language and actions are free of personal attacks and disparaging personal remarks.
 - When interpreting the words and actions of others, participants should always assume good intentions.
-- Behavior which can be reasonably considered harassment will not be tolerated.
+- Behavior that can be reasonably considered harassment will not be tolerated.
 </div>

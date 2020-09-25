@@ -1,10 +1,10 @@
 # Laravel Horizon
 
 - [Introduction](#introduction)
-- [Upgrading Horizon](#upgrading)
 - [Installation](#installation)
     - [Configuration](#configuration)
     - [Dashboard Authorization](#dashboard-authorization)
+- [Upgrading Horizon](#upgrading-horizon)
 - [Running Horizon](#running-horizon)
     - [Deploying Horizon](#deploying-horizon)
 - [Tags](#tags)
@@ -17,19 +17,6 @@
 Horizon provides a beautiful dashboard and code-driven configuration for your Laravel powered Redis queues. Horizon allows you to easily monitor key metrics of your queue system such as job throughput, runtime, and job failures.
 
 All of your worker configuration is stored in a single, simple configuration file, allowing your configuration to stay in source control where your entire team can collaborate.
-
-<p align="center">
-<img src="https://res.cloudinary.com/dtfbvvkyp/image/upload/v1537195039/photos/Test.png" width="600" height="481">
-</p>
-
-<a name="upgrading"></a>
-## Upgrading Horizon
-
-When upgrading to a new major version of Horizon, it's important that you carefully review [the upgrade guide](https://github.com/laravel/horizon/blob/master/UPGRADE.md).
-
-In addition, you should re-publish Horizon's assets:
-
-    php artisan horizon:assets
 
 <a name="installation"></a>
 ## Installation
@@ -69,10 +56,14 @@ When using the `auto` strategy, you may define the `minProcesses` and `maxProces
                 'balance' => 'auto',
                 'minProcesses' => 1,
                 'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
                 'tries' => 3,
             ],
         ],
     ],
+
+The `balanceMaxShift` and `balanceCooldown` configuration values to determine how quickly Horizon will scale to meet worker demand. In the example above, a maximum of one new process will be created or destroyed every three seconds. You are free to tweak these values as necessary based on your application's needs.
 
 #### Job Trimming
 
@@ -106,6 +97,25 @@ Horizon exposes a dashboard at `/horizon`. By default, you will only be able to 
 
 > {note} Remember that Laravel injects the *authenticated* user to the Gate automatically. If your app is providing Horizon security via another method, such as IP restrictions, then your Horizon users may not need to "login". Therefore, you will need to change `function ($user)` above to `function ($user = null)` to force Laravel to not require authentication.
 
+<a name="upgrading-horizon"></a>
+## Upgrading Horizon
+
+When upgrading to a new major version of Horizon, it's important that you carefully review [the upgrade guide](https://github.com/laravel/horizon/blob/master/UPGRADE.md).
+
+In addition, when upgrading to any new Horizon version, you should re-publish Horizon's assets:
+
+    php artisan horizon:publish
+
+To keep the assets up-to-date and avoid issues in future updates, you may add the command to the `post-update-cmd` scripts in your `composer.json` file:
+
+    {
+        "scripts": {
+            "post-update-cmd": [
+                "@php artisan horizon:publish --ansi"
+            ]
+        }
+    }
+
 <a name="running-horizon"></a>
 ## Running Horizon
 
@@ -118,6 +128,10 @@ You may pause the Horizon process and instruct it to continue processing jobs us
     php artisan horizon:pause
 
     php artisan horizon:continue
+
+You may check the current status of the Horizon process using the `horizon:status` Artisan command:
+
+    php artisan horizon:status
 
 You may gracefully terminate the master Horizon process on your machine using the `horizon:terminate` Artisan command. Any jobs that Horizon is currently processing will be completed and then Horizon will exit:
 
@@ -148,6 +162,9 @@ Supervisor configuration files are typically stored in the `/etc/supervisor/conf
     user=forge
     redirect_stderr=true
     stdout_logfile=/home/forge/app.com/horizon.log
+    stopwaitsecs=3600
+
+> {note} You should ensure that the value of `stopwaitsecs` is greater than the number of seconds consumed by your longest running job. Otherwise, Supervisor may kill the job before it is finished processing.
 
 #### Starting Supervisor
 
@@ -170,7 +187,7 @@ Horizon allows you to assign “tags” to jobs, including mailables, event broa
 
     namespace App\Jobs;
 
-    use App\Video;
+    use App\Models\Video;
     use Illuminate\Bus\Queueable;
     use Illuminate\Contracts\Queue\ShouldQueue;
     use Illuminate\Foundation\Bus\Dispatchable;
@@ -184,14 +201,14 @@ Horizon allows you to assign “tags” to jobs, including mailables, event broa
         /**
          * The video instance.
          *
-         * @var \App\Video
+         * @var \App\Models\Video
          */
         public $video;
 
         /**
          * Create a new job instance.
          *
-         * @param  \App\Video  $video
+         * @param  \App\Models\Video  $video
          * @return void
          */
         public function __construct(Video $video)
@@ -210,9 +227,9 @@ Horizon allows you to assign “tags” to jobs, including mailables, event broa
         }
     }
 
-If this job is queued with an `App\Video` instance that has an `id` of `1`, it will automatically receive the tag `App\Video:1`. This is because Horizon will examine the job's properties for any Eloquent models. If Eloquent models are found, Horizon will intelligently tag the job using the model's class name and primary key:
+If this job is queued with an `App\Models\Video` instance that has an `id` of `1`, it will automatically receive the tag `App\Models\Video:1`. This is because Horizon will examine the job's properties for any Eloquent models. If Eloquent models are found, Horizon will intelligently tag the job using the model's class name and primary key:
 
-    $video = App\Video::find(1);
+    $video = App\Models\Video::find(1);
 
     App\Jobs\RenderVideo::dispatch($video);
 
@@ -250,6 +267,7 @@ You may configure how many seconds are considered a "long wait" within your `con
 
     'waits' => [
         'redis:default' => 60,
+        'redis:critical,high' => 90,
     ],
 
 <a name="metrics"></a>

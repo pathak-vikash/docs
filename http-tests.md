@@ -2,10 +2,12 @@
 
 - [Introduction](#introduction)
     - [Customizing Request Headers](#customizing-request-headers)
+    - [Cookies](#cookies)
     - [Debugging Responses](#debugging-responses)
 - [Session / Authentication](#session-and-authentication)
 - [Testing JSON APIs](#testing-json-apis)
 - [Testing File Uploads](#testing-file-uploads)
+- [Testing Views](#testing-views)
 - [Available Assertions](#available-assertions)
     - [Response Assertions](#response-assertions)
     - [Authentication Assertions](#authentication-assertions)
@@ -13,7 +15,7 @@
 <a name="introduction"></a>
 ## Introduction
 
-Laravel provides a very fluent API for making HTTP requests to your application and examining the output. For example, take a look at the test defined below:
+Laravel provides a very fluent API for making HTTP requests to your application and examining the output. For example, take a look at the feature test defined below:
 
     <?php
 
@@ -70,10 +72,30 @@ You may use the `withHeaders` method to customize the request's headers before i
 
 > {tip} The CSRF middleware is automatically disabled when running tests.
 
+<a name="cookies"></a>
+### Cookies
+
+You may use the `withCookie` or `withCookies` methods to set cookie values before making a request. The `withCookie` method accepts a cookie name and value as its two arguments, while the `withCookies` method accepts an array of name / value pairs:
+
+    <?php
+
+    class ExampleTest extends TestCase
+    {
+        public function testCookies()
+        {
+            $response = $this->withCookie('color', 'blue')->get('/');
+
+            $response = $this->withCookies([
+                'color' => 'blue',
+                'name' => 'Taylor',
+            ])->get('/');
+        }
+    }
+
 <a name="debugging-responses"></a>
 ### Debugging Responses
 
-After making a test request to your application, the `dump` and `dumpHeaders` methods may be used to examine and debug the response contents:
+After making a test request to your application, the `dump`, `dumpHeaders`, and `dumpSession` methods may be used to examine and debug the response contents:
 
     <?php
 
@@ -95,6 +117,8 @@ After making a test request to your application, the `dump` and `dumpHeaders` me
             $response = $this->get('/');
 
             $response->dumpHeaders();
+
+            $response->dumpSession();
 
             $response->dump();
         }
@@ -120,13 +144,13 @@ One common use of the session is for maintaining state for the authenticated use
 
     <?php
 
-    use App\User;
+    use App\Models\User;
 
     class ExampleTest extends TestCase
     {
         public function testApplication()
         {
-            $user = factory(User::class)->create();
+            $user = User::factory()->create();
 
             $response = $this->actingAs($user)
                              ->withSession(['foo' => 'bar'])
@@ -165,6 +189,10 @@ Laravel also provides several helpers for testing JSON APIs and their responses.
     }
 
 > {tip} The `assertJson` method converts the response to an array and utilizes `PHPUnit::assertArraySubset` to verify that the given array exists within the JSON response returned by the application. So, if there are other properties in the JSON response, this test will still pass as long as the given fragment is present.
+
+In addition, JSON response data may be accessed as array variables on the response:
+
+    $this->assertTrue($response['created']);
 
 <a name="verifying-exact-match"></a>
 ### Verifying An Exact JSON Match
@@ -261,13 +289,56 @@ In addition to creating images, you may create files of any other type using the
 
     UploadedFile::fake()->create('document.pdf', $sizeInKilobytes);
 
+If needed, you may pass a `$mimeType` argument to the method to explicitly define the MIME type that should be returned by the file:
+
+    UploadedFile::fake()->create('document.pdf', $sizeInKilobytes, 'application/pdf');
+
+<a name="testing-views"></a>
+## Testing Views
+
+Laravel allows you to render a view in isolation without making a simulated HTTP request to the application. To accomplish this, you may use the `view` method within your test. The `view` method accepts the view name and an optional array of data. The method returns an instance of `Illuminate\Testing\TestView`, which offers several methods to conveniently make assertions about the view's contents:
+
+    public function testWelcomeView()
+    {
+        $view = $this->view('welcome', ['name' => 'Taylor']);
+
+        $view->assertSee('Taylor');
+    }
+
+The `TestView` object provides the following assertion methods: `assertSee`, `assertSeeInOrder`, `assertSeeText`, `assertSeeTextInOrder`, `assertDontSee`, and `assertDontSeeText`.
+
+If needed, you may get the raw, rendered view contents by casting the `TestView` instance to a string:
+
+    $contents = (string) $this->view('welcome');
+
+#### Sharing Errors
+
+Some views may depend on errors shared in the global error bag provided by Laravel. To hydrate the error bag with error messages, you may use the `withViewErrors` method:
+
+    $view = $this->withViewErrors([
+        'name' => ['Please provide a valid name.']
+    ])->view('form');
+
+    $view->assertSee('Please provide a valid name.');
+
+#### Rendering Raw Blade
+
+If necessary, you may use the `blade` method to evaluate and render a raw Blade string. Like the `view` method, the `blade` method returns an instance of `Illuminate\Testing\TestView`:
+
+    $view = $this->blade(
+        '<x-component :name="$name" />',
+        ['name' => 'Taylor']
+    );
+
+    $view->assertSee('Taylor');
+
 <a name="available-assertions"></a>
 ## Available Assertions
 
 <a name="response-assertions"></a>
 ### Response Assertions
 
-Laravel provides a variety of custom assertion methods for your [PHPUnit](https://phpunit.de/) tests. These assertions may be accessed on the response that is returned from the `json`, `get`, `post`, `put`, and `delete` test methods:
+Laravel provides a variety of custom assertion methods for your [PHPUnit](https://phpunit.de/) feature tests. These assertions may be accessed on the response that is returned from the `json`, `get`, `post`, `put`, and `delete` test methods:
 
 <style>
     .collection-method-list > p {
@@ -368,16 +439,16 @@ Assert that the response has a 201 status code:
 <a name="assert-dont-see"></a>
 #### assertDontSee
 
-Assert that the given string is not contained within the response:
+Assert that the given string is not contained within the response. This assertion will automatically escape the given string unless you pass a second argument of `false`:
 
-    $response->assertDontSee($value);
+    $response->assertDontSee($value, $escaped = true);
 
 <a name="assert-dont-see-text"></a>
 #### assertDontSeeText
 
-Assert that the given string is not contained within the response text:
+Assert that the given string is not contained within the response text. This assertion will automatically escape the given string unless you pass a second argument of `false`:
 
-    $response->assertDontSeeText($value);
+    $response->assertDontSeeText($value, $escaped = true);
 
 <a name="assert-exact-json"></a>
 #### assertExactJson
@@ -389,7 +460,7 @@ Assert that the response contains an exact match of the given JSON data:
 <a name="assert-forbidden"></a>
 #### assertForbidden
 
-Assert that the response has a forbidden status code:
+Assert that the response has a forbidden (403) status code:
 
     $response->assertForbidden();
 
@@ -515,30 +586,30 @@ Assert that the response is a redirect to a given URI:
 <a name="assert-see"></a>
 #### assertSee
 
-Assert that the given string is contained within the response:
+Assert that the given string is contained within the response. This assertion will automatically escape the given string unless you pass a second argument of `false`:
 
-    $response->assertSee($value);
+    $response->assertSee($value, $escaped = true);
 
 <a name="assert-see-in-order"></a>
 #### assertSeeInOrder
 
-Assert that the given strings are contained in order within the response:
+Assert that the given strings are contained in order within the response. This assertion will automatically escape the given strings unless you pass a second argument of `false`:
 
-    $response->assertSeeInOrder(array $values);
+    $response->assertSeeInOrder(array $values, $escaped = true);
 
 <a name="assert-see-text"></a>
 #### assertSeeText
 
-Assert that the given string is contained within the response text:
+Assert that the given string is contained within the response text. This assertion will automatically escape the given string unless you pass a second argument of `false`:
 
-    $response->assertSeeText($value);
+    $response->assertSeeText($value, $escaped = true);
 
 <a name="assert-see-text-in-order"></a>
 #### assertSeeTextInOrder
 
-Assert that the given strings are contained in order within the response text:
+Assert that the given strings are contained in order within the response text. This assertion will automatically escape the given strings unless you pass a second argument of `false`:
 
-    $response->assertSeeTextInOrder(array $values);
+    $response->assertSeeTextInOrder(array $values, $escaped = true);
 
 <a name="assert-session-has"></a>
 #### assertSessionHas
@@ -624,6 +695,10 @@ Assert that the response view was given a piece of data:
 
     $response->assertViewHas($key, $value = null);
 
+In addition, view data may be accessed as array variables on the response:
+
+    $this->assertEquals('Taylor', $response['name']);
+
 <a name="assert-view-has-all"></a>
 #### assertViewHasAll
 
@@ -648,7 +723,7 @@ Assert that the response view is missing a piece of bound data:
 <a name="authentication-assertions"></a>
 ### Authentication Assertions
 
-Laravel also provides a variety of authentication related assertions for your [PHPUnit](https://phpunit.de/) tests:
+Laravel also provides a variety of authentication related assertions for your [PHPUnit](https://phpunit.de/) feature tests:
 
 Method  | Description
 ------------- | -------------

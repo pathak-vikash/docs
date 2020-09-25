@@ -50,6 +50,8 @@ Of course, manually creating the files for each event and listener is cumbersome
 
 Typically, events should be registered via the `EventServiceProvider` `$listen` array; however, you may also register Closure based events manually in the `boot` method of your `EventServiceProvider`:
 
+    use App\Events\PodcastProcessed;
+
     /**
      * Register any other events for your application.
      *
@@ -57,12 +59,50 @@ Typically, events should be registered via the `EventServiceProvider` `$listen` 
      */
     public function boot()
     {
-        parent::boot();
-
-        Event::listen('event.name', function ($foo, $bar) {
+        Event::listen(function (PodcastProcessed $event) {
             //
         });
     }
+
+<a name="queuable-anonymous-event-listeners"></a>
+#### Queueable Anonymous Event Listeners
+
+When registering event listeners manually, you may wrap the listener Closure within the `Illuminate\Events\queueable` function to instruct Laravel to execute the listener using the [queue](/docs/{{version}}/queues):
+
+    use App\Events\PodcastProcessed;
+    use function Illuminate\Events\queueable;
+    use Illuminate\Support\Facades\Event;
+
+    /**
+     * Register any other events for your application.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        Event::listen(queueable(function (PodcastProcessed $event) {
+            //
+        }));
+    }
+
+Like queued jobs, you may use the `onConnection`, `onQueue`, and `delay` methods to customize the execution of the queued listener:
+
+    Event::listen(queueable(function (PodcastProcessed $event) {
+        //
+    })->onConnection('redis')->onQueue('podcasts')->delay(now()->addSeconds(10)));
+
+If you would like to handle anonymous queued listener failures, you may provide a Closure to the `catch` method while defining the `queueable` listener:
+
+    use App\Events\PodcastProcessed;
+    use function Illuminate\Events\queueable;
+    use Illuminate\Support\Facades\Event;
+    use Throwable;
+
+    Event::listen(queueable(function (PodcastProcessed $event) {
+        //
+    })->catch(function (PodcastProcessed $event, Throwable $e) {
+        // The queued listener failed...
+    }));
 
 #### Wildcard Event Listeners
 
@@ -74,8 +114,6 @@ You may even register listeners using the `*` as a wildcard parameter, allowing 
 
 <a name="event-discovery"></a>
 ### Event Discovery
-
-> {note} Event Discovery is available for Laravel 5.8.9 or later.
 
 Instead of registering events and listeners manually in the `$listen` array of the `EventServiceProvider`, you can enable automatic event discovery. When event discovery is enabled, Laravel will automatically find and register your events and listeners by scanning your application's `Listeners` directory. In addition, any explicitly defined events listed in the `EventServiceProvider` will still be registered.
 
@@ -136,19 +174,21 @@ An event class is a data container which holds the information related to the ev
 
     namespace App\Events;
 
-    use App\Order;
+    use App\Models\Order;
+    use Illuminate\Broadcasting\InteractsWithSockets;
+    use Illuminate\Foundation\Events\Dispatchable;
     use Illuminate\Queue\SerializesModels;
 
     class OrderShipped
     {
-        use SerializesModels;
+        use Dispatchable, InteractsWithSockets, SerializesModels;
 
         public $order;
 
         /**
          * Create a new event instance.
          *
-         * @param  \App\Order  $order
+         * @param  \App\Models\Order  $order
          * @return void
          */
         public function __construct(Order $order)
@@ -256,9 +296,21 @@ If you would like to customize the queue connection, queue name, or queue delay 
         public $delay = 60;
     }
 
+If you would like to define the listener's queue at runtime, you may define a `viaQueue` method on the listener:
+
+    /**
+     * Get the name of the listener's queue.
+     *
+     * @return string
+     */
+    public function viaQueue()
+    {
+        return 'listeners';
+    }
+
 #### Conditionally Queueing Listeners
 
-Sometimes, you may need to determine whether a listener should be queued based on some data that's only available at runtime. To accomplish this, a `shouldQueue` method may be added to a listener to determine whether the listener should be queued and executed synchronously:
+Sometimes, you may need to determine whether a listener should be queued based on some data that's only available at runtime. To accomplish this, a `shouldQueue` method may be added to a listener to determine whether the listener should be queued. If the `shouldQueue` method returns `false`, the listener will not be executed:
 
     <?php
 
@@ -355,7 +407,7 @@ Sometimes your queued event listeners may fail. If queued listener exceeds the m
          * Handle a job failure.
          *
          * @param  \App\Events\OrderShipped  $event
-         * @param  \Exception  $exception
+         * @param  \Throwable  $exception
          * @return void
          */
         public function failed(OrderShipped $event, $exception)
@@ -375,7 +427,7 @@ To dispatch an event, you may pass an instance of the event to the `event` helpe
 
     use App\Events\OrderShipped;
     use App\Http\Controllers\Controller;
-    use App\Order;
+    use App\Models\Order;
 
     class OrderController extends Controller
     {
@@ -394,6 +446,10 @@ To dispatch an event, you may pass an instance of the event to the `event` helpe
             event(new OrderShipped($order));
         }
     }
+
+Alternatively, if your event uses the `Illuminate\Foundation\Events\Dispatchable` trait, you may call the static `dispatch` method on the event. Any arguments passed to the `dispatch` method will be passed to the event's constructor:
+
+    OrderShipped::dispatch($order);
 
 > {tip} When testing, it can be helpful to assert that certain events were dispatched without actually triggering their listeners. Laravel's [built-in testing helpers](/docs/{{version}}/mocking#event-fake) makes it a cinch.
 
@@ -425,19 +481,38 @@ Event subscribers are classes that may subscribe to multiple events from within 
          * Register the listeners for the subscriber.
          *
          * @param  \Illuminate\Events\Dispatcher  $events
+         * @return void
          */
         public function subscribe($events)
         {
             $events->listen(
                 'Illuminate\Auth\Events\Login',
-                'App\Listeners\UserEventSubscriber@handleUserLogin'
+                [UserEventSubscriber::class, 'handleUserLogin']
             );
 
             $events->listen(
                 'Illuminate\Auth\Events\Logout',
-                'App\Listeners\UserEventSubscriber@handleUserLogout'
+                [UserEventSubscriber::class, 'handleUserLogout']
             );
         }
+    }
+
+Alternatively, your subscriber's `subscribe` method may return an array of event to handler mappings. In this case, the event listener mappings will be registered for you automatically:
+
+    use Illuminate\Auth\Events\Login;
+    use Illuminate\Auth\Events\Logout;
+
+    /**
+     * Register the listeners for the subscriber.
+     *
+     * @return array
+     */
+    public function subscribe()
+    {
+        return [
+            Login::class => [UserEventSubscriber::class, 'handleUserLogin'],
+            Logout::class => [UserEventSubscriber::class, 'handleUserLogout'],
+        ];
     }
 
 <a name="registering-event-subscribers"></a>

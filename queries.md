@@ -11,6 +11,7 @@
 - [Where Clauses](#where-clauses)
     - [Parameter Grouping](#parameter-grouping)
     - [Where Exists Clauses](#where-exists-clauses)
+    - [Subquery Where Clauses](#subquery-where-clauses)
     - [JSON Where Clauses](#json-where-clauses)
 - [Ordering, Grouping, Limit & Offset](#ordering-grouping-limit-and-offset)
 - [Conditional Clauses](#conditional-clauses)
@@ -226,6 +227,15 @@ The `orderByRaw` method may be used to set a raw string as the value of the `ord
                     ->orderByRaw('updated_at - created_at DESC')
                     ->get();
 
+### `groupByRaw`
+
+The `groupByRaw` method may be used to set a raw string as the value of the `group by` clause:
+
+    $orders = DB::table('orders')
+                    ->select('city', 'state')
+                    ->groupByRaw('city, state')
+                    ->get();
+
 <a name="joins"></a>
 ## Joins
 
@@ -255,8 +265,8 @@ If you would like to perform a "left join" or "right join" instead of an "inner 
 
 To perform a "cross join" use the `crossJoin` method with the name of the table you wish to cross join to. Cross joins generate a cartesian product between the first table and the joined table:
 
-    $users = DB::table('sizes')
-                ->crossJoin('colours')
+    $sizes = DB::table('sizes')
+                ->crossJoin('colors')
                 ->get();
 
 #### Advanced Join Clauses
@@ -278,9 +288,9 @@ If you would like to use a "where" style clause on your joins, you may use the `
             })
             ->get();
 
-#### Sub-Query Joins
+#### Subquery Joins
 
-You may use the `joinSub`, `leftJoinSub`, and `rightJoinSub` methods to join a query to a sub-query. Each of these methods receive three arguments: the sub-query, its table alias, and a Closure that defines the related columns:
+You may use the `joinSub`, `leftJoinSub`, and `rightJoinSub` methods to join a query to a subquery. Each of these methods receive three arguments: the subquery, its table alias, and a Closure that defines the related columns:
 
     $latestPosts = DB::table('posts')
                        ->select('user_id', DB::raw('MAX(created_at) as last_post_created_at'))
@@ -352,6 +362,18 @@ You may chain where constraints together as well as add `or` clauses to the quer
                         ->orWhere('name', 'John')
                         ->get();
 
+If you need to group an "or" condition within parentheses, you may pass a Closure as the first argument to the `orWhere` method:
+
+    $users = DB::table('users')
+                ->where('votes', '>', 100)
+                ->orWhere(function($query) {
+                    $query->where('name', 'Abigail')
+                          ->where('votes', '>', 50);
+                })
+                ->get();
+
+    // SQL: select * from users where votes > 100 or (name = 'Abigail' and votes > 50)
+
 #### Additional Where Clauses
 
 **whereBetween / orWhereBetween**
@@ -383,6 +405,8 @@ The `whereNotIn` method verifies that the given column's value is **not** contai
     $users = DB::table('users')
                         ->whereNotIn('id', [1, 2, 3])
                         ->get();
+
+> {note} If you are adding a huge array of integer bindings to your query, the `whereIntegerInRaw` or `whereIntegerNotInRaw` methods may be used to greatly reduce your memory usage.
 
 **whereNull / whereNotNull / orWhereNull / orWhereNotNull**
 
@@ -491,6 +515,21 @@ The query above will produce the following SQL:
         select 1 from orders where orders.user_id = users.id
     )
 
+<a name="subquery-where-clauses"></a>
+### Subquery Where Clauses
+
+Sometimes you may need to construct a where clause that compares the results of a subquery to a given value. You may accomplish this by passing a Closure and a value to the `where` method. For example, the following query will retrieve all users who have a recent "membership" of a given type;
+
+    use App\Models\User;
+
+    $users = User::where(function ($query) {
+        $query->select('type')
+            ->from('membership')
+            ->whereColumn('user_id', 'users.id')
+            ->orderByDesc('start_date')
+            ->limit(1);
+    }, 'Pro')->get();
+
 <a name="json-where-clauses"></a>
 ### JSON Where Clauses
 
@@ -536,6 +575,13 @@ The `orderBy` method allows you to sort the result of the query by a given colum
     $users = DB::table('users')
                     ->orderBy('name', 'desc')
                     ->get();
+                    
+If you need to sort by multiple columns, you may invoke `orderBy` as many times as needed:
+                                         
+    $users = DB::table('users')
+                    ->orderBy('name', 'desc')
+                    ->orderBy('email', 'asc')
+                    ->get();
 
 #### latest / oldest
 
@@ -552,6 +598,20 @@ The `inRandomOrder` method may be used to sort the query results randomly. For e
     $randomUser = DB::table('users')
                     ->inRandomOrder()
                     ->first();
+
+#### reorder
+
+The `reorder` method allows you to remove all the existing orders and optionally apply a new order. For example, you can remove all the existing orders:
+
+    $query = DB::table('users')->orderBy('name');
+
+    $unorderedUsers = $query->reorder()->get();
+
+To remove all existing orders and apply a new order, provide the column and direction as arguments to the method:
+
+    $query = DB::table('users')->orderBy('name');
+
+    $usersOrderedByEmail = $query->reorder('email', 'desc')->get();
 
 #### groupBy / having
 
@@ -624,14 +684,14 @@ You may even insert several records into the table with a single call to `insert
 
     DB::table('users')->insert([
         ['email' => 'taylor@example.com', 'votes' => 0],
-        ['email' => 'dayle@example.com', 'votes' => 0]
+        ['email' => 'dayle@example.com', 'votes' => 0],
     ]);
 
 The `insertOrIgnore` method will ignore duplicate record errors while inserting records into the database:
 
     DB::table('users')->insertOrIgnore([
         ['id' => 1, 'email' => 'taylor@example.com'],
-        ['id' => 2, 'email' => 'dayle@example.com']
+        ['id' => 2, 'email' => 'dayle@example.com'],
     ]);
 
 #### Auto-Incrementing IDs
@@ -692,6 +752,8 @@ Both of these methods accept at least one argument: the column to modify. A seco
 You may also specify additional columns to update during the operation:
 
     DB::table('users')->increment('votes', 1, ['name' => 'John']);
+
+> {note} Model events are not fired when using the `increment` and `decrement` methods.
 
 <a name="deletes"></a>
 ## Deletes

@@ -3,6 +3,7 @@
 - [Introduction](#introduction)
 - [Environment](#environment)
 - [Creating & Running Tests](#creating-and-running-tests)
+    - [Artisan Test Runner](#artisan-test-runner)
 
 <a name="introduction"></a>
 ## Introduction
@@ -11,12 +12,12 @@ Laravel is built with testing in mind. In fact, support for testing with PHPUnit
 
 By default, your application's `tests` directory contains two directories: `Feature` and `Unit`. Unit tests are tests that focus on a very small, isolated portion of your code. In fact, most unit tests probably focus on a single method. Feature tests may test a larger portion of your code, including how several objects interact with each other or even a full HTTP request to a JSON endpoint.
 
-An `ExampleTest.php` file is provided in both the `Feature` and `Unit` test directories. After installing a new Laravel application, run `phpunit` on the command line to run your tests.
+An `ExampleTest.php` file is provided in both the `Feature` and `Unit` test directories. After installing a new Laravel application, run `vendor/bin/phpunit` on the command line to run your tests.
 
 <a name="environment"></a>
 ## Environment
 
-When running tests via `phpunit`, Laravel will automatically set the configuration environment to `testing` because of the environment variables defined in the `phpunit.xml` file. Laravel also automatically configures the session and cache to the `array` driver while testing, meaning no session or cache data will be persisted while testing.
+When running tests via `vendor/bin/phpunit`, Laravel will automatically set the configuration environment to `testing` because of the environment variables defined in the `phpunit.xml` file. Laravel also automatically configures the session and cache to the `array` driver while testing, meaning no session or cache data will be persisted while testing.
 
 You are free to define other testing environment configuration values as necessary. The `testing` environment variables may be configured in the `phpunit.xml` file, but make sure to clear your configuration cache using the `config:clear` Artisan command before running your tests!
 
@@ -33,7 +34,9 @@ To create a new test case, use the `make:test` Artisan command:
     // Create a test in the Unit directory...
     php artisan make:test UserTest --unit
 
-Once the test has been generated, you may define test methods as you normally would using PHPUnit. To run your tests, execute the `phpunit` command from your terminal:
+> {tip} Test stubs may be customized using [stub publishing](/docs/{{version}}/artisan#stub-customization)
+
+Once the test has been generated, you may define test methods as you normally would using PHPUnit. To run your tests, execute the `phpunit` or `artisan test` command from your terminal:
 
     <?php
 
@@ -55,3 +58,14 @@ Once the test has been generated, you may define test methods as you normally wo
     }
 
 > {note} If you define your own `setUp` / `tearDown` methods within a test class, be sure to call the respective `parent::setUp()` / `parent::tearDown()` methods on the parent class.
+
+<a name="artisan-test-runner"></a>
+### Artisan Test Runner
+
+In addition to the `phpunit` command, you may use the `test` Artisan command to run your tests. The Artisan test runner provides verbose test reports in order to ease development and debugging:
+
+    php artisan test
+
+Any arguments that can be passed to the `phpunit` command may also be passed to the Artisan `test` command:
+
+    php artisan test --group=feature --stop-on-failure

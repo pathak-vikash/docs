@@ -20,7 +20,7 @@ All of the configuration files for the Laravel framework are stored in the `conf
 
 It is often helpful to have different configuration values based on the environment where the application is running. For example, you may wish to use a different cache driver locally than you do on your production server.
 
-To make this a cinch, Laravel utilizes the [DotEnv](https://github.com/vlucas/phpdotenv) PHP library by Vance Lucas. In a fresh Laravel installation, the root directory of your application will contain a `.env.example` file. If you install Laravel via Composer, this file will automatically be renamed to `.env`. Otherwise, you should rename the file manually.
+To make this a cinch, Laravel utilizes the [DotEnv](https://github.com/vlucas/phpdotenv) PHP library by Vance Lucas. In a fresh Laravel installation, the root directory of your application will contain a `.env.example` file. If you install Laravel via Composer, this file will automatically be copied to `.env`. Otherwise, you should copy the file manually.
 
 Your `.env` file should not be committed to your application's source control, since each developer / server using your application could require a different environment configuration. Furthermore, this would be a security risk in the event an intruder gains access to your source control repository, since any sensitive credentials would get exposed.
 
@@ -79,15 +79,15 @@ You may also pass arguments to the `environment` method to check if the environm
 <a name="hiding-environment-variables-from-debug"></a>
 ### Hiding Environment Variables From Debug Pages
 
-When an exception is uncaught and the `APP_DEBUG` environment variable is `true`, the debug page will show all environment variables and their contents. In some cases you may want to obscure certain variables. You may do this by updating the `debug_blacklist` option in your `config/app.php` configuration file.
+When an exception is uncaught and the `APP_DEBUG` environment variable is `true`, the debug page will show all environment variables and their contents. In some cases you may want to obscure certain variables. You may do this by updating the `debug_hide` option in your `config/app.php` configuration file.
 
-Some variables are available in both the environment variables and the server / request data. Therefore, you may need to blacklist them for both `$_ENV` and `$_SERVER`:
+Some variables are available in both the environment variables and the server / request data. Therefore, you may need to hide them for both `$_ENV` and `$_SERVER`:
 
     return [
 
         // ...
 
-        'debug_blacklist' => [
+        'debug_hide' => [
             '_ENV' => [
                 'APP_KEY',
                 'DB_PASSWORD',
@@ -111,6 +111,9 @@ You may easily access your configuration values using the global `config` helper
 
     $value = config('app.timezone');
 
+    // Retrieve a default value if the configuration value does not exist...
+    $value = config('app.timezone', 'Asia/Seoul');
+
 To set configuration values at runtime, pass an array to the `config` helper:
 
     config(['app.timezone' => 'America/Chicago']);
@@ -133,13 +136,37 @@ To enable maintenance mode, execute the `down` Artisan command:
 
     php artisan down
 
-You may also provide `message` and `retry` options to the `down` command. The `message` value may be used to display or log a custom message, while the `retry` value will be set as the `Retry-After` HTTP header's value:
+You may also provide a `retry` option to the `down` command, which will be set as the `Retry-After` HTTP header's value:
 
-    php artisan down --message="Upgrading Database" --retry=60
+    php artisan down --retry=60
 
-Even while in maintenance mode, specific IP addresses or networks may be allowed to access the application using the command's `allow` option:
+#### Bypassing Maintenance Mode
 
-    php artisan down --allow=127.0.0.1 --allow=192.168.0.0/16
+Even while in maintenance mode, you may use the `secret` option to specify a maintenance mode bypass token:
+
+    php artisan down --secret="1630542a-246b-4b66-afa1-dd72a4c43515"
+
+After placing the application in maintenance mode, you may navigate to the application URL matching this token and Laravel will issue a maintenance mode bypass cookie to your browser:
+
+    https://example.com/1630542a-246b-4b66-afa1-dd72a4c43515
+
+When accessing this hidden route, you will then be redirected to the `/` route of the application. Once the cookie has been issued to your browser, you will be able to browse the application normally as if it was not in maintenance mode.
+
+#### Pre-Rendering The Maintenace Mode View
+
+If you utilize the `php artisan down` command during deployment, your users may still occasionally encounter errors if they access the application while your Composer dependencies or other infrastructure components are updating. This occurs because a significant part of the Laravel framework must boot in order to determine your application is in maintenance mode and render the maintenance mode view using the templating engine.
+
+For this reason, Laravel allows you to pre-render a maintenance mode view that will be returned at the very beginning of the request cycle. This view is rendered before any of your application's dependencies have loaded. You may pre-render a template of your choice using the `down` command's `render` option:
+
+    php artisan down --render="errors::503"
+
+#### Redirecting Maintenance Mode Requests
+
+While in maintenance mode, Laravel will display the maintenance mode view for all application URLs the user attempts to access. If you wish, you may instruct Laravel to redirect all requests to a specific URL. This may be accomplished using the `redirect` option. For example, you may wish to redirect all requests to the `/` URI:
+
+    php artisan down --redirect=/
+
+#### Disabling Maintenance Mode
 
 To disable maintenance mode, use the `up` command:
 

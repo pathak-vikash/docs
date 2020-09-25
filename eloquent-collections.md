@@ -11,7 +11,7 @@ All multi-result sets returned by Eloquent are instances of the `Illuminate\Data
 
 All collections also serve as iterators, allowing you to loop over them as if they were simple PHP arrays:
 
-    $users = App\User::where('active', 1)->get();
+    $users = App\Models\User::where('active', 1)->get();
 
     foreach ($users as $user) {
         echo $user->name;
@@ -19,7 +19,7 @@ All collections also serve as iterators, allowing you to loop over them as if th
 
 However, collections are much more powerful than arrays and expose a variety of map / reduce operations that may be chained using an intuitive interface. For example, let's remove all inactive models and gather the first name for each remaining user:
 
-    $users = App\User::all();
+    $users = App\Models\User::all();
 
     $names = $users->reject(function ($user) {
         return $user->active === false;
@@ -62,6 +62,7 @@ In addition, the `Illuminate\Database\Eloquent\Collection` class provides a supe
 [makeVisible](#method-makeVisible)
 [makeHidden](#method-makeHidden)
 [only](#method-only)
+[toQuery](#method-toquery)
 [unique](#method-unique)
 
 </div>
@@ -72,7 +73,7 @@ In addition, the `Illuminate\Database\Eloquent\Collection` class provides a supe
 The `contains` method may be used to determine if a given model instance is contained by the collection. This method accepts a primary key or a model instance:
 
     $users->contains(1);
-    
+
     $users->contains(User::find(1));
 
 <a name="method-diff"></a>
@@ -80,7 +81,7 @@ The `contains` method may be used to determine if a given model instance is cont
 
 The `diff` method returns all of the models that are not present in the given collection:
 
-    use App\User;
+    use App\Models\User;
 
     $users = $users->diff(User::whereIn('id', [1, 2, 3])->get());
 
@@ -114,7 +115,7 @@ The `fresh` method retrieves a fresh instance of each model in the collection fr
 
 The `intersect` method returns all of the models that are also present in the given collection:
 
-    use App\User;
+    use App\Models\User;
 
     $users = $users->intersect(User::whereIn('id', [1, 2, 3])->get());
 
@@ -144,7 +145,7 @@ The `modelKeys` method returns the primary keys for all models in the collection
     $users->modelKeys();
 
     // [1, 2, 3, 4, 5]
-    
+
 <a name="method-makeVisible"></a>
 #### `makeVisible($attributes)`
 
@@ -166,6 +167,17 @@ The `only` method returns all of the models that have the given primary keys:
 
     $users = $users->only([1, 2, 3]);
 
+<a name="method-toquery"></a>
+#### `toQuery()`
+
+The `toQuery` method returns an Eloquent query builder instance containing a `whereIn` constraint on the collection model's primary keys:
+
+    $users = App\Models\User::where('status', 'VIP')->get();
+
+    $users->toQuery()->update([
+        'status' => 'Administrator',
+    ]);
+
 <a name="method-unique"></a>
 #### `unique($key = null, $strict = false)`
 
@@ -180,9 +192,9 @@ If you need to use a custom `Collection` object with your own extension methods,
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
-    use App\CustomCollection;
+    use App\Support\CustomCollection;
     use Illuminate\Database\Eloquent\Model;
 
     class User extends Model

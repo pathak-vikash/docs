@@ -5,6 +5,8 @@
     - [Binding Basics](#binding-basics)
     - [Binding Interfaces To Implementations](#binding-interfaces-to-implementations)
     - [Contextual Binding](#contextual-binding)
+    - [Binding Primitives](#binding-primitives)
+    - [Binding Typed Variadics](#binding-typed-variadics)
     - [Tagging](#tagging)
     - [Extending Bindings](#extending-bindings)
 - [Resolving](#resolving)
@@ -26,7 +28,7 @@ Let's look at a simple example:
 
     use App\Http\Controllers\Controller;
     use App\Repositories\UserRepository;
-    use App\User;
+    use App\Models\User;
 
     class UserController extends Controller
     {
@@ -81,7 +83,7 @@ Almost all of your service container bindings will be registered within [service
 Within a service provider, you always have access to the container via the `$this->app` property. We can register a binding using the `bind` method, passing the class or interface name that we wish to register along with a `Closure` that returns an instance of the class:
 
     $this->app->bind('HelpSpot\API', function ($app) {
-        return new HelpSpot\API($app->make('HttpClient'));
+        return new \HelpSpot\API($app->make('HttpClient'));
     });
 
 Note that we receive the container itself as an argument to the resolver. We can then use the container to resolve sub-dependencies of the object we are building.
@@ -91,24 +93,16 @@ Note that we receive the container itself as an argument to the resolver. We can
 The `singleton` method binds a class or interface into the container that should only be resolved one time. Once a singleton binding is resolved, the same object instance will be returned on subsequent calls into the container:
 
     $this->app->singleton('HelpSpot\API', function ($app) {
-        return new HelpSpot\API($app->make('HttpClient'));
+        return new \HelpSpot\API($app->make('HttpClient'));
     });
 
 #### Binding Instances
 
 You may also bind an existing object instance into the container using the `instance` method. The given instance will always be returned on subsequent calls into the container:
 
-    $api = new HelpSpot\API(new HttpClient);
+    $api = new \HelpSpot\API(new HttpClient);
 
     $this->app->instance('HelpSpot\API', $api);
-
-#### Binding Primitives
-
-Sometimes you may have a class that receives some injected classes, but also needs an injected primitive value such as an integer. You may easily use contextual binding to inject any value your class may need:
-
-    $this->app->when('App\Http\Controllers\UserController')
-              ->needs('$variableName')
-              ->give($value);
 
 <a name="binding-interfaces-to-implementations"></a>
 ### Binding Interfaces To Implementations
@@ -157,6 +151,68 @@ Sometimes you may have two classes that utilize the same interface, but you wish
               ->give(function () {
                   return Storage::disk('s3');
               });
+
+<a name="binding-primitives"></a>
+### Binding Primitives
+
+Sometimes you may have a class that receives some injected classes, but also needs an injected primitive value such as an integer. You may easily use contextual binding to inject any value your class may need:
+
+    $this->app->when('App\Http\Controllers\UserController')
+              ->needs('$variableName')
+              ->give($value);
+
+Sometimes a class may depend on an array of tagged instances. Using the `giveTagged` method, you may easily inject all of the container bindings with that tag:
+
+    $this->app->when(ReportAggregator::class)
+        ->needs('$reports')
+        ->giveTagged('reports');
+
+<a name="binding-typed-variadics"></a>
+### Binding Typed Variadics
+
+Occasionally you may have a class that receives an array of typed objects using a variadic constructor argument:
+
+    class Firewall
+    {
+        protected $logger;
+        protected $filters;
+
+        public function __construct(Logger $logger, Filter ...$filters)
+        {
+            $this->logger = $logger;
+            $this->filters = $filters;
+        }
+    }
+
+Using contextual binding, you may resolve this dependency by providing the `give` method with a Closure that returns an array of resolved `Filter` instances:
+
+    $this->app->when(Firewall::class)
+              ->needs(Filter::class)
+              ->give(function ($app) {
+                    return [
+                        $app->make(NullFilter::class),
+                        $app->make(ProfanityFilter::class),
+                        $app->make(TooLongFilter::class),
+                    ];
+              });
+
+For convenience, you may also just provide an array of class names to be resolved by the container whenever `Firewall` needs `Filter` instances:
+
+    $this->app->when(Firewall::class)
+              ->needs(Filter::class)
+              ->give([
+                  NullFilter::class,
+                  ProfanityFilter::class,
+                  TooLongFilter::class,
+              ]);
+
+#### Variadic Tag Dependencies
+
+Sometimes a class may have a variadic dependency that is type-hinted as a given class (`Report ...$reports`). Using the `needs` and `giveTagged` methods, you may easily inject all of the container bindings with that tag for the given dependency:
+
+    $this->app->when(ReportAggregator::class)
+        ->needs(Report::class)
+        ->giveTagged('reports');
 
 <a name="tagging"></a>
 ### Tagging
@@ -217,7 +273,7 @@ For example, you may type-hint a repository defined by your application in a con
 
     namespace App\Http\Controllers;
 
-    use App\Users\Repository as UserRepository;
+    use App\Models\Users\Repository as UserRepository;
 
     class UserController extends Controller
     {
@@ -258,7 +314,7 @@ The service container fires an event each time it resolves an object. You may li
         // Called when container resolves object of any type...
     });
 
-    $this->app->resolving(HelpSpot\API::class, function ($api, $app) {
+    $this->app->resolving(\HelpSpot\API::class, function ($api, $app) {
         // Called when container resolves objects of type "HelpSpot\API"...
     });
 

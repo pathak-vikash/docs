@@ -13,6 +13,7 @@
     - [Customizing The Sender](#customizing-the-sender)
     - [Customizing The Recipient](#customizing-the-recipient)
     - [Customizing The Subject](#customizing-the-subject)
+    - [Customizing The Mailer](#customizing-the-mailer)
     - [Customizing The Templates](#customizing-the-templates)
     - [Previewing Mail Notifications](#previewing-mail-notifications)
 - [Markdown Mail Notifications](#markdown-mail-notifications)
@@ -46,7 +47,7 @@
 <a name="introduction"></a>
 ## Introduction
 
-In addition to support for [sending email](/docs/{{version}}/mail), Laravel provides support for sending notifications across a variety of delivery channels, including mail, SMS (via [Nexmo](https://www.nexmo.com/)), and [Slack](https://slack.com). Notifications may also be stored in a database so they may be displayed in your web interface.
+In addition to support for [sending email](/docs/{{version}}/mail), Laravel provides support for sending notifications across a variety of delivery channels, including mail, SMS (via [Vonage](https://www.vonage.com/communications-apis/), formerly known as Nexmo), and [Slack](https://slack.com). Notifications may also be stored in a database so they may be displayed in your web interface.
 
 Typically, notifications should be short, informational messages that notify users of something that occurred in your application. For example, if you are writing a billing application, you might send an "Invoice Paid" notification to your users via the email and SMS channels.
 
@@ -69,7 +70,7 @@ Notifications may be sent in two ways: using the `notify` method of the `Notifia
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Illuminate\Foundation\Auth\User as Authenticatable;
     use Illuminate\Notifications\Notifiable;
@@ -79,7 +80,7 @@ Notifications may be sent in two ways: using the `notify` method of the `Notifia
         use Notifiable;
     }
 
-This trait is utilized by the default `App\User` model and contains one method that may be used to send notifications: `notify`. The `notify` method expects to receive a notification instance:
+This trait is utilized by the default `App\Models\User` model and contains one method that may be used to send notifications: `notify`. The `notify` method expects to receive a notification instance:
 
     use App\Notifications\InvoicePaid;
 
@@ -146,10 +147,27 @@ If you would like to delay the delivery of the notification, you may chain the `
 
     $user->notify((new InvoicePaid($invoice))->delay($when));
 
+#### Customizing Notification Channel Queues
+
+If you would like to specify a specific queue that should be used for each notification channel supported by the notification, you may define a `viaQueues` method on your notification. This method should return an array of channel name / queue name pairs:
+
+    /**
+     * Determine which queues should be used for each notification channel.
+     *
+     * @return array
+     */
+    public function viaQueues()
+    {
+        return [
+            'mail' => 'mail-queue',
+            'slack' => 'slack-queue',
+        ];
+    }
+
 <a name="on-demand-notifications"></a>
 ### On-Demand Notifications
 
-Sometimes you may need to send a notification to someone who is not stored as a "user" of your application. Using the `Notification::route` method, you may specify ad-hoc notification routing information before sending the notification:
+Sometimes you may need to send a notification to someone who is not stored as a "user" of your application. Using the `Notification::route` facade method, you may specify ad-hoc notification routing information before sending the notification:
 
     Notification::route('mail', 'taylor@example.com')
                 ->route('nexmo', '5555555555')
@@ -206,7 +224,23 @@ Instead of defining the "lines" of text in the notification class, you may use t
         );
     }
 
-In addition, you may return a [mailable object](/docs/{{version}}/mail) from the `toMail` method:
+You may specify a plain-text view for the mail message by passing the view name as the second element of an array that is given to the `view` method of the `MailMessage`:
+
+    /**
+     * Get the mail representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return \Illuminate\Notifications\Messages\MailMessage
+     */
+    public function toMail($notifiable)
+    {
+        return (new MailMessage)->view(
+            ['emails.name.html', 'emails.name.plain'],
+            ['invoice' => $this->invoice]
+        );
+    }
+
+In addition, you may return a full [mailable object](/docs/{{version}}/mail) from the `toMail` method:
 
     use App\Mail\InvoicePaid as Mailable;
 
@@ -218,7 +252,7 @@ In addition, you may return a [mailable object](/docs/{{version}}/mail) from the
      */
     public function toMail($notifiable)
     {
-        return (new Mailable($this->invoice))->to($this->user->email);
+        return (new Mailable($this->invoice))->to($notifiable->email);
     }
 
 <a name="error-messages"></a>
@@ -265,7 +299,7 @@ When sending notifications via the `mail` channel, the notification system will 
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Illuminate\Foundation\Auth\User as Authenticatable;
     use Illuminate\Notifications\Notifiable;
@@ -278,11 +312,15 @@ When sending notifications via the `mail` channel, the notification system will 
          * Route notifications for the mail channel.
          *
          * @param  \Illuminate\Notifications\Notification  $notification
-         * @return string
+         * @return array|string
          */
         public function routeNotificationForMail($notification)
         {
+            // Return email address only...
             return $this->email_address;
+
+            // Return name and email address...
+            return [$this->email_address => $this->name];
         }
     }
 
@@ -301,6 +339,24 @@ By default, the email's subject is the class name of the notification formatted 
     {
         return (new MailMessage)
                     ->subject('Notification Subject')
+                    ->line('...');
+    }
+
+<a name="customizing-the-mailer"></a>
+### Customizing The Mailer
+
+By default, the email notification will be sent using the default driver defined in the `config/mail.php` configuration file. However, you may specify a different mailer at runtime by calling the `mailer` method when building your message:
+
+    /**
+     * Get the mail representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return \Illuminate\Notifications\Messages\MailMessage
+     */
+    public function toMail($notifiable)
+    {
+        return (new MailMessage)
+                    ->mailer('postmark')
                     ->line('...');
     }
 
@@ -468,9 +524,9 @@ The `toArray` method is also used by the `broadcast` channel to determine which 
 <a name="accessing-the-notifications"></a>
 ### Accessing The Notifications
 
-Once notifications are stored in the database, you need a convenient way to access them from your notifiable entities. The `Illuminate\Notifications\Notifiable` trait, which is included on Laravel's default `App\User` model, includes a `notifications` Eloquent relationship that returns the notifications for the entity. To fetch notifications, you may access this method like any other Eloquent relationship. By default, notifications will be sorted by the `created_at` timestamp:
+Once notifications are stored in the database, you need a convenient way to access them from your notifiable entities. The `Illuminate\Notifications\Notifiable` trait, which is included on Laravel's default `App\Models\User` model, includes a `notifications` Eloquent relationship that returns the notifications for the entity. To fetch notifications, you may access this method like any other Eloquent relationship. By default, notifications will be sorted by the `created_at` timestamp:
 
-    $user = App\User::find(1);
+    $user = App\Models\User::find(1);
 
     foreach ($user->notifications as $notification) {
         echo $notification->type;
@@ -478,7 +534,7 @@ Once notifications are stored in the database, you need a convenient way to acce
 
 If you want to retrieve only the "unread" notifications, you may use the `unreadNotifications` relationship. Again, these notifications will be sorted by the `created_at` timestamp:
 
-    $user = App\User::find(1);
+    $user = App\Models\User::find(1);
 
     foreach ($user->unreadNotifications as $notification) {
         echo $notification->type;
@@ -491,7 +547,7 @@ If you want to retrieve only the "unread" notifications, you may use the `unread
 
 Typically, you will want to mark a notification as "read" when a user views it. The `Illuminate\Notifications\Notifiable` trait provides a `markAsRead` method, which updates the `read_at` column on the notification's database record:
 
-    $user = App\User::find(1);
+    $user = App\Models\User::find(1);
 
     foreach ($user->unreadNotifications as $notification) {
         $notification->markAsRead();
@@ -503,7 +559,7 @@ However, instead of looping through each notification, you may use the `markAsRe
 
 You may also use a mass-update query to mark all of the notifications as read without retrieving them from the database:
 
-    $user = App\User::find(1);
+    $user = App\Models\User::find(1);
 
     $user->unreadNotifications()->update(['read_at' => now()]);
 
@@ -548,12 +604,26 @@ All broadcast notifications are queued for broadcasting. If you would like to co
                     ->onConnection('sqs')
                     ->onQueue('broadcasts');
 
-> {tip} In addition to the data you specify, broadcast notifications will also contain a `type` field containing the class name of the notification.
+#### Customizing The Notification Type
+
+In addition to the data you specify, all broadcast notifications also have a `type` field containing the full class name of the notification. If you would like to customize the notification `type` that is provided to your JavaScript client, you may define a `broadcastType` method on the notification class:
+
+    use Illuminate\Notifications\Messages\BroadcastMessage;
+
+    /**
+     * Get the type of the notification being broadcast.
+     *
+     * @return string
+     */
+    public function broadcastType()
+    {
+        return 'broadcast.message';
+    }
 
 <a name="listening-for-notifications"></a>
 ### Listening For Notifications
 
-Notifications will broadcast on a private channel formatted using a `{notifiable}.{id}` convention. So, if you are sending a notification to a `App\User` instance with an ID of `1`, the notification will be broadcast on the `App.User.1` private channel. When using [Laravel Echo](/docs/{{version}}/broadcasting), you may easily listen for notifications on a channel using the `notification` helper method:
+Notifications will broadcast on a private channel formatted using a `{notifiable}.{id}` convention. So, if you are sending a notification to a `App\Models\User` instance with an ID of `1`, the notification will be broadcast on the `App.User.1` private channel. When using [Laravel Echo](/docs/{{version}}/broadcasting), you may easily listen for notifications on a channel using the `notification` helper method:
 
     Echo.private('App.User.' + userId)
         .notification((notification) => {
@@ -566,7 +636,7 @@ If you would like to customize which channels a notifiable entity receives its b
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Illuminate\Broadcasting\PrivateChannel;
     use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -689,7 +759,7 @@ To route Nexmo notifications to the proper phone number, define a `routeNotifica
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Illuminate\Foundation\Auth\User as Authenticatable;
     use Illuminate\Notifications\Notifiable;
@@ -720,7 +790,7 @@ Before you can send notifications via Slack, you must install the notification c
 
     composer require laravel/slack-notification-channel
 
-You will also need to configure an ["Incoming Webhook"](https://api.slack.com/incoming-webhooks) integration for your Slack team. This integration will provide you with a URL you may use when [routing Slack notifications](#routing-slack-notifications).
+You will also need to configure an ["Incoming Webhook"](https://slack.com/apps/A0F7XDUAZ-incoming-webhooks) integration for your Slack team. This integration will provide you with a URL you may use when [routing Slack notifications](#routing-slack-notifications).
 
 <a name="formatting-slack-notifications"></a>
 ### Formatting Slack Notifications
@@ -866,7 +936,7 @@ To route Slack notifications to the proper location, define a `routeNotification
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Illuminate\Foundation\Auth\User as Authenticatable;
     use Illuminate\Notifications\Notifiable;

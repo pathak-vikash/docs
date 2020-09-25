@@ -5,10 +5,12 @@
 - [Bus Fake](#bus-fake)
 - [Event Fake](#event-fake)
     - [Scoped Event Fakes](#scoped-event-fakes)
+- [HTTP Fake](#http-fake)
 - [Mail Fake](#mail-fake)
 - [Notification Fake](#notification-fake)
 - [Queue Fake](#queue-fake)
 - [Storage Fake](#storage-fake)
+- [Interacting With Time](#interacting-with-time)
 - [Facades](#mocking-facades)
 
 <a name="introduction"></a>
@@ -77,7 +79,8 @@ As an alternative to mocking, you may use the `Bus` facade's `fake` method to pr
 
             // Perform order shipping...
 
-            Bus::assertDispatched(ShipOrder::class, function ($job) use ($order) {
+            // Assert a specific type of job was dispatched meeting the given truth test...
+            Bus::assertDispatched(function (ShipOrder $job) use ($order) {
                 return $job->order->id === $order->id;
             });
 
@@ -113,8 +116,9 @@ As an alternative to mocking, you may use the `Event` facade's `fake` method to 
 
             // Perform order shipping...
 
-            Event::assertDispatched(OrderShipped::class, function ($e) use ($order) {
-                return $e->order->id === $order->id;
+            // Assert a specific type of event was dispatched meeting the given truth test...
+            Event::assertDispatched(function (OrderShipped $event) use ($order) {
+                return $event->order->id === $order->id;
             });
 
             // Assert an event was dispatched twice...
@@ -140,7 +144,7 @@ If you only want to fake event listeners for a specific set of events, you may p
             OrderCreated::class,
         ]);
 
-        $order = factory(Order::class)->create();
+        $order = Order::factory()->create();
 
         Event::assertDispatched(OrderCreated::class);
 
@@ -158,7 +162,7 @@ If you only want to fake event listeners for a portion of your test, you may use
     namespace Tests\Feature;
 
     use App\Events\OrderCreated;
-    use App\Order;
+    use App\Models\Order;
     use Illuminate\Foundation\Testing\RefreshDatabase;
     use Illuminate\Support\Facades\Event;
     use Illuminate\Foundation\Testing\WithoutMiddleware;
@@ -172,7 +176,7 @@ If you only want to fake event listeners for a portion of your test, you may use
         public function testOrderProcess()
         {
             $order = Event::fakeFor(function () {
-                $order = factory(Order::class)->create();
+                $order = Order::factory()->create();
 
                 Event::assertDispatched(OrderCreated::class);
 
@@ -183,6 +187,11 @@ If you only want to fake event listeners for a portion of your test, you may use
             $order->update([...]);
         }
     }
+
+<a name="http-fake"></a>
+## HTTP Fake
+
+The `Http` facade's `fake` method allows you to instruct the HTTP client to return stubbed / dummy responses when requests are made. For more information on faking outgoing HTTP requests, please consult the [HTTP Client testing documentation](/docs/{{version}}/http-client#testing).
 
 <a name="mail-fake"></a>
 ## Mail Fake
@@ -210,7 +219,8 @@ You may use the `Mail` facade's `fake` method to prevent mail from being sent. Y
 
             // Perform order shipping...
 
-            Mail::assertSent(OrderShipped::class, function ($mail) use ($order) {
+            // Assert a specific type of mailable was dispatched meeting the given truth test...
+            Mail::assertSent(function (OrderShipped $mail) use ($order) {
                 return $mail->order->id === $order->id;
             });
 
@@ -261,10 +271,10 @@ You may use the `Notification` facade's `fake` method to prevent notifications f
 
             // Perform order shipping...
 
+            // Assert a specific type of notification was sent meeting the given truth test...
             Notification::assertSentTo(
                 $user,
-                OrderShipped::class,
-                function ($notification, $channels) use ($order) {
+                function (OrderShipped $notification, $channels) use ($order) {
                     return $notification->order->id === $order->id;
                 }
             );
@@ -283,7 +293,7 @@ You may use the `Notification` facade's `fake` method to prevent notifications f
             Notification::assertSentTo(
                 new AnonymousNotifiable, OrderShipped::class
             );
-            
+
             // Assert Notification::route() method sent notification to the correct user...
             Notification::assertSentTo(
                 new AnonymousNotifiable,
@@ -304,6 +314,8 @@ As an alternative to mocking, you may use the `Queue` facade's `fake` method to 
 
     namespace Tests\Feature;
 
+    use App\Jobs\AnotherJob;
+    use App\Jobs\FinalJob;
     use App\Jobs\ShipOrder;
     use Illuminate\Foundation\Testing\RefreshDatabase;
     use Illuminate\Foundation\Testing\WithoutMiddleware;
@@ -321,7 +333,8 @@ As an alternative to mocking, you may use the `Queue` facade's `fake` method to 
 
             // Perform order shipping...
 
-            Queue::assertPushed(ShipOrder::class, function ($job) use ($order) {
+            // Assert a specific type of job was pushed meeting the given truth test...
+            Queue::assertPushed(function (ShipOrder $job) use ($order) {
                 return $job->order->id === $order->id;
             });
 
@@ -334,11 +347,20 @@ As an alternative to mocking, you may use the `Queue` facade's `fake` method to 
             // Assert a job was not pushed...
             Queue::assertNotPushed(AnotherJob::class);
 
-            // Assert a job was pushed with a specific chain...
+            // Assert a job was pushed with a given chain of jobs, matching by class...
             Queue::assertPushedWithChain(ShipOrder::class, [
                 AnotherJob::class,
                 FinalJob::class
             ]);
+
+            // Assert a job was pushed with a given chain of jobs, matching by both class and properties...
+            Queue::assertPushedWithChain(ShipOrder::class, [
+                new AnotherJob('foo'),
+                new FinalJob('bar'),
+            ]);
+
+            // Assert a job was pushed without a chain of jobs...
+            Queue::assertPushedWithoutChain(ShipOrder::class);
         }
     }
 
@@ -379,6 +401,32 @@ The `Storage` facade's `fake` method allows you to easily generate a fake disk t
     }
 
 > {tip} By default, the `fake` method will delete all files in its temporary directory. If you would like to keep these files, you may use the "persistentFake" method instead.
+
+<a name="interacting-with-time"></a>
+## Interacting With Time
+
+When testing, you may occasionally need to modify the time returned by helpers such as `now` or `Illuminate\Support\Carbon::now()`. Thankfully, Laravel's base feature test class includes helpers that allow you to manipulate the current time:
+
+    public function testTimeCanBeManipulated()
+    {
+        // Travel into the future...
+        $this->travel(5)->milliseconds();
+        $this->travel(5)->seconds();
+        $this->travel(5)->minutes();
+        $this->travel(5)->hours();
+        $this->travel(5)->days();
+        $this->travel(5)->weeks();
+        $this->travel(5)->years();
+
+        // Travel into the past...
+        $this->travel(-5)->hours();
+
+        // Travel to an explicit time...
+        $this->travelTo(now()->subHours(6));
+
+        // Return back to the present time...
+        $this->travelBack();
+    }
 
 <a name="mocking-facades"></a>
 ## Facades

@@ -151,7 +151,7 @@ Using real-time facades, you may treat any class in your application as if it we
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use App\Contracts\Publisher;
     use Illuminate\Database\Eloquent\Model;
@@ -176,7 +176,7 @@ Injecting a publisher implementation into the method allows us to easily test th
 
     <?php
 
-    namespace App;
+    namespace App\Models;
 
     use Facades\App\Contracts\Publisher;
     use Illuminate\Database\Eloquent\Model;
@@ -202,7 +202,7 @@ When the real-time facade is used, the publisher implementation will be resolved
 
     namespace Tests\Feature;
 
-    use App\Podcast;
+    use App\Models\Podcast;
     use Facades\App\Contracts\Publisher;
     use Illuminate\Foundation\Testing\RefreshDatabase;
     use Tests\TestCase;
@@ -252,6 +252,7 @@ Event  |  [Illuminate\Events\Dispatcher](https://laravel.com/api/{{version}}/Ill
 File  |  [Illuminate\Filesystem\Filesystem](https://laravel.com/api/{{version}}/Illuminate/Filesystem/Filesystem.html)  |  `files`
 Gate  |  [Illuminate\Contracts\Auth\Access\Gate](https://laravel.com/api/{{version}}/Illuminate/Contracts/Auth/Access/Gate.html)  |  &nbsp;
 Hash  |  [Illuminate\Contracts\Hashing\Hasher](https://laravel.com/api/{{version}}/Illuminate/Contracts/Hashing/Hasher.html)  |  `hash`
+Http  |  [Illuminate\Http\Client\Factory](https://laravel.com/api/{{version}}/Illuminate/Http/Client/Factory.html)  |  &nbsp;
 Lang  |  [Illuminate\Translation\Translator](https://laravel.com/api/{{version}}/Illuminate/Translation/Translator.html)  |  `translator`
 Log  |  [Illuminate\Log\LogManager](https://laravel.com/api/{{version}}/Illuminate/Log/LogManager.html)  |  `log`
 Mail  |  [Illuminate\Mail\Mailer](https://laravel.com/api/{{version}}/Illuminate/Mail/Mailer.html)  |  `mailer`

@@ -10,8 +10,7 @@
 - [Named Routes](#named-routes)
 - [Route Groups](#route-groups)
     - [Middleware](#route-group-middleware)
-    - [Namespaces](#route-group-namespaces)
-    - [Sub-Domain Routing](#route-group-sub-domain-routing)
+    - [Subdomain Routing](#route-group-subdomain-routing)
     - [Route Prefixes](#route-group-prefixes)
     - [Route Name Prefixes](#route-group-name-prefixes)
 - [Route Model Binding](#route-model-binding)
@@ -19,8 +18,11 @@
     - [Explicit Binding](#explicit-binding)
 - [Fallback Routes](#fallback-routes)
 - [Rate Limiting](#rate-limiting)
+    - [Defining Rate Limiters](#defining-rate-limiters)
+    - [Attaching Rate Limiters To Routes](#attaching-rate-limiters-to-routes)
 - [Form Method Spoofing](#form-method-spoofing)
 - [Accessing The Current Route](#accessing-the-current-route)
+- [Cross-Origin Resource Sharing (CORS)](#cors)
 
 <a name="basic-routing"></a>
 ## Basic Routing
@@ -37,7 +39,9 @@ All Laravel routes are defined in your route files, which are located in the `ro
 
 For most applications, you will begin by defining routes in your `routes/web.php` file. The routes defined in `routes/web.php` may be accessed by entering the defined route's URL in your browser. For example, you may access the following route by navigating to `http://your-app.test/user` in your browser:
 
-    Route::get('/user', 'UserController@index');
+    use App\Http\Controllers\UserController;
+
+    Route::get('/user', [UserController::class, 'index']);
 
 Routes defined in the `routes/api.php` file are nested within a route group by the `RouteServiceProvider`. Within this group, the `/api` URI prefix is automatically applied so you do not need to manually apply it to every route in the file. You may modify the prefix and other route group options by modifying your `RouteServiceProvider` class.
 
@@ -64,7 +68,7 @@ Sometimes you may need to register a route that responds to multiple HTTP verbs.
 
 #### CSRF Protection
 
-Any HTML forms pointing to `POST`, `PUT`, or `DELETE` routes that are defined in the `web` routes file should include a CSRF token field. Otherwise, the request will be rejected. You can read more about CSRF protection in the [CSRF documentation](/docs/{{version}}/csrf):
+Any HTML forms pointing to `POST`, `PUT`, `PATCH`, or `DELETE` routes that are defined in the `web` routes file should include a CSRF token field. Otherwise, the request will be rejected. You can read more about CSRF protection in the [CSRF documentation](/docs/{{version}}/csrf):
 
     <form method="POST" action="/profile">
         @csrf
@@ -158,8 +162,6 @@ If you would like a route parameter to always be constrained by a given regular 
     public function boot()
     {
         Route::pattern('id', '[0-9]+');
-
-        parent::boot();
     }
 
 Once the pattern has been defined, it is automatically applied to all routes using that parameter name:
@@ -190,7 +192,9 @@ Named routes allow the convenient generation of URLs or redirects for specific r
 
 You may also specify route names for controller actions:
 
-    Route::get('user/profile', 'UserProfileController@show')->name('profile');
+    Route::get('user/profile', [UserProfileController::class, 'show'])->name('profile');
+
+> {note} Route names should always be unique.
 
 #### Generating URLs To Named Routes
 
@@ -220,6 +224,8 @@ If you pass additional parameters in the array, those key / value pairs will aut
 
     // /user/1/profile?photos=yes
 
+> {tip} Sometimes, you may wish to specify request-wide default values for URL parameters, such as the current locale. To accomplish this, you may use the [`URL::defaults` method](/docs/{{version}}/urls#default-values).
+
 #### Inspecting The Current Route
 
 If you would like to determine if the current request was routed to a given named route, you may use the `named` method on a Route instance. For example, you may check the current route name from a route middleware:
@@ -243,9 +249,9 @@ If you would like to determine if the current request was routed to a given name
 <a name="route-groups"></a>
 ## Route Groups
 
-Route groups allow you to share route attributes, such as middleware or namespaces, across a large number of routes without needing to define those attributes on each individual route. Shared attributes are specified in an array format as the first parameter to the `Route::group` method.
+Route groups allow you to share route attributes, such as middleware, across a large number of routes without needing to define those attributes on each individual route. Shared attributes are specified in an array format as the first parameter to the `Route::group` method.
 
-Nested groups attempt to intelligently "merge" attributes with their parent group. Middleware and `where` conditions are merged while names, namespaces, and prefixes are appended. Namespace delimiters and slashes in URI prefixes are automatically added where appropriate.
+Nested groups attempt to intelligently "merge" attributes with their parent group. Middleware and `where` conditions are merged while names and prefixes are appended. Namespace delimiters and slashes in URI prefixes are automatically added where appropriate.
 
 <a name="route-group-middleware"></a>
 ### Middleware
@@ -254,29 +260,18 @@ To assign middleware to all routes within a group, you may use the `middleware` 
 
     Route::middleware(['first', 'second'])->group(function () {
         Route::get('/', function () {
-            // Uses first & second Middleware
+            // Uses first & second middleware...
         });
 
         Route::get('user/profile', function () {
-            // Uses first & second Middleware
+            // Uses first & second middleware...
         });
     });
 
-<a name="route-group-namespaces"></a>
-### Namespaces
+<a name="route-group-subdomain-routing"></a>
+### Subdomain Routing
 
-Another common use-case for route groups is assigning the same PHP namespace to a group of controllers using the `namespace` method:
-
-    Route::namespace('Admin')->group(function () {
-        // Controllers Within The "App\Http\Controllers\Admin" Namespace
-    });
-
-Remember, by default, the `RouteServiceProvider` includes your route files within a namespace group, allowing you to register controller routes without specifying the full `App\Http\Controllers` namespace prefix. So, you only need to specify the portion of the namespace that comes after the base `App\Http\Controllers` namespace.
-
-<a name="route-group-sub-domain-routing"></a>
-### Sub-Domain Routing
-
-Route groups may also be used to handle sub-domain routing. Sub-domains may be assigned route parameters just like route URIs, allowing you to capture a portion of the sub-domain for usage in your route or controller. The sub-domain may be specified by calling the `domain` method before defining the group:
+Route groups may also be used to handle subdomain routing. Subdomains may be assigned route parameters just like route URIs, allowing you to capture a portion of the subdomain for usage in your route or controller. The subdomain may be specified by calling the `domain` method before defining the group:
 
     Route::domain('{account}.myapp.com')->group(function () {
         Route::get('user/{id}', function ($account, $id) {
@@ -284,7 +279,7 @@ Route groups may also be used to handle sub-domain routing. Sub-domains may be a
         });
     });
 
-> {note} In order to ensure your sub-domain routes are reachable, you should register sub-domain routes before registering root domain routes. This will prevent root domain routes from overwriting sub-domain routes which have the same URI path.
+> {note} In order to ensure your subdomain routes are reachable, you should register subdomain routes before registering root domain routes. This will prevent root domain routes from overwriting subdomain routes which have the same URI path.
 
 <a name="route-group-prefixes"></a>
 ### Route Prefixes
@@ -318,15 +313,37 @@ When injecting a model ID to a route or controller action, you will often query 
 
 Laravel automatically resolves Eloquent models defined in routes or controller actions whose type-hinted variable names match a route segment name. For example:
 
-    Route::get('api/users/{user}', function (App\User $user) {
+    Route::get('api/users/{user}', function (App\Models\User $user) {
         return $user->email;
     });
 
-Since the `$user` variable is type-hinted as the `App\User` Eloquent model and the variable name matches the `{user}` URI segment, Laravel will automatically inject the model instance that has an ID matching the corresponding value from the request URI. If a matching model instance is not found in the database, a 404 HTTP response will automatically be generated.
+Since the `$user` variable is type-hinted as the `App\Models\User` Eloquent model and the variable name matches the `{user}` URI segment, Laravel will automatically inject the model instance that has an ID matching the corresponding value from the request URI. If a matching model instance is not found in the database, a 404 HTTP response will automatically be generated.
 
-#### Customizing The Key Name
+#### Customizing The Key
 
-If you would like model binding to use a database column other than `id` when retrieving a given model class, you may override the `getRouteKeyName` method on the Eloquent model:
+Sometimes you may wish to resolve Eloquent models using a column other than `id`. To do so, you may specify the column in the route parameter definition:
+
+    Route::get('api/posts/{post:slug}', function (App\Models\Post $post) {
+        return $post;
+    });
+
+<a name="implicit-model-binding-scoping"></a>
+#### Custom Keys & Scoping
+
+Sometimes, when implicitly binding multiple Eloquent models in a single route definition, you may wish to scope the second Eloquent model such that it must be a child of the first Eloquent model. For example, consider this situation that retrieves a blog post by slug for a specific user:
+
+    use App\Models\Post;
+    use App\Models\User;
+
+    Route::get('api/users/{user}/posts/{post:slug}', function (User $user, Post $post) {
+        return $post;
+    });
+
+When using a custom keyed implicit binding as a nested route parameter, Laravel will automatically scope the query to retrieve the nested model by its parent using conventions to guess the relationship name on the parent. In this case, it will be assumed that the `User` model has a relationship named `posts` (the plural of the route parameter name) which can be used to retrieve the `Post` model.
+
+#### Customizing The Default Key Name
+
+If you would like model binding to use a default database column other than `id` when retrieving a given model class, you may override the `getRouteKeyName` method on the Eloquent model:
 
     /**
      * Get the route key for the model.
@@ -341,22 +358,27 @@ If you would like model binding to use a database column other than `id` when re
 <a name="explicit-binding"></a>
 ### Explicit Binding
 
-To register an explicit binding, use the router's `model` method to specify the class for a given parameter. You should define your explicit model bindings in the `boot` method of the `RouteServiceProvider` class:
+To register an explicit binding, use the router's `model` method to specify the class for a given parameter. You should define your explicit model bindings at the beginning of the `boot` method of your `RouteServiceProvider` class:
 
+    /**
+     * Define your route model bindings, pattern filters, etc.
+     *
+     * @return void
+     */
     public function boot()
     {
-        parent::boot();
+        Route::model('user', App\Models\User::class);
 
-        Route::model('user', App\User::class);
+        // ...
     }
 
 Next, define a route that contains a `{user}` parameter:
 
-    Route::get('profile/{user}', function (App\User $user) {
+    Route::get('profile/{user}', function (App\Models\User $user) {
         //
     });
 
-Since we have bound all `{user}` parameters to the `App\User` model, a `User` instance will be injected into the route. So, for example, a request to `profile/1` will inject the `User` instance from the database which has an ID of `1`.
+Since we have bound all `{user}` parameters to the `App\Models\User` model, a `User` instance will be injected into the route. So, for example, a request to `profile/1` will inject the `User` instance from the database which has an ID of `1`.
 
 If a matching model instance is not found in the database, a 404 HTTP response will be automatically generated.
 
@@ -365,17 +387,17 @@ If a matching model instance is not found in the database, a 404 HTTP response w
 If you wish to use your own resolution logic, you may use the `Route::bind` method. The `Closure` you pass to the `bind` method will receive the value of the URI segment and should return the instance of the class that should be injected into the route:
 
     /**
-     * Bootstrap any application services.
+     * Define your route model bindings, pattern filters, etc.
      *
      * @return void
      */
     public function boot()
     {
-        parent::boot();
-
         Route::bind('user', function ($value) {
-            return App\User::where('name', $value)->firstOrFail();
+            return App\Models\User::where('name', $value)->firstOrFail();
         });
+
+        // ...
     }
 
 Alternatively, you may override the `resolveRouteBinding` method on your Eloquent model. This method will receive the value of the URI segment and should return the instance of the class that should be injected into the route:
@@ -384,9 +406,10 @@ Alternatively, you may override the `resolveRouteBinding` method on your Eloquen
      * Retrieve the model for a bound value.
      *
      * @param  mixed  $value
+     * @param  string|null  $field
      * @return \Illuminate\Database\Eloquent\Model|null
      */
-    public function resolveRouteBinding($value)
+    public function resolveRouteBinding($value, $field = null)
     {
         return $this->where('name', $value)->firstOrFail();
     }
@@ -405,36 +428,68 @@ Using the `Route::fallback` method, you may define a route that will be executed
 <a name="rate-limiting"></a>
 ## Rate Limiting
 
-Laravel includes a [middleware](/docs/{{version}}/middleware) to rate limit access to routes within your application. To get started, assign the `throttle` middleware to a route or a group of routes. The `throttle` middleware accepts two parameters that determine the maximum number of requests that can be made in a given number of minutes. For example, let's specify that an authenticated user may access the following group of routes 60 times per minute:
+<a name="defining-rate-limiters"></a>
+### Defining Rate Limiters
 
-    Route::middleware('auth:api', 'throttle:60,1')->group(function () {
-        Route::get('/user', function () {
-            //
+Laravel includes powerful and customizable rate limiting services that you may utilize to restrict the amount of traffic for a given route or group of routes. To get started, you should define rate limiter configurations that meet your application's needs. Typically, this may be done in your application's `RouteServiceProvider`.
+
+Rate limiters are defined using the `RateLimiter` facade's `for` method. The `for` method accepts a rate limiter name and a Closure that returns the limit configuration that should apply to routes that are assigned this rate limiter:
+
+    use Illuminate\Cache\RateLimiting\Limit;
+    use Illuminate\Support\Facades\RateLimiter;
+
+    RateLimiter::for('global', function (Request $request) {
+        return Limit::perMinute(1000);
+    });
+
+If the incoming request exceeds the specified rate limit, a response with a 429 HTTP status code will be automatically returned by Laravel. If you would like to define your own response that should be returned by a rate limit, you may use the `response` method:
+
+    RateLimiter::for('global', function (Request $request) {
+        return Limit::perMinute(1000)->response(function () {
+            return response('Custom response...', 429);
         });
     });
 
-#### Dynamic Rate Limiting
+Since rate limiter callbacks receive the incoming HTTP request instance, you may build the appropriate rate limit dynamically based on the incoming request or authenticated user:
 
-You may specify a dynamic request maximum based on an attribute of the authenticated `User` model. For example, if your `User` model contains a `rate_limit` attribute, you may pass the name of the attribute to the `throttle` middleware so that it is used to calculate the maximum request count:
+    RateLimiter::for('uploads', function (Request $request) {
+        return $request->user()->vipCustomer()
+                    ? Limit::none()
+                    : Limit::perMinute(100);
+    });
 
-    Route::middleware('auth:api', 'throttle:rate_limit,1')->group(function () {
-        Route::get('/user', function () {
+#### Segmenting Rate Limits
+
+Sometimes you may wish to segment rate limits by some arbitrary value. For example, you may wish to allow users to access a given route 100 times per minute per IP address. To accomplish this, you may use the `by` method when building your rate limit:
+
+    RateLimiter::for('uploads', function (Request $request) {
+        return $request->user()->vipCustomer()
+                    ? Limit::none()
+                    : Limit::perMinute(100)->by($request->ip());
+    });
+
+#### Multiple Rate Limits
+
+If needed, you may return an array of rate limits for a given rate limiter configuration. Each rate limit will be evaluated for the route based on the order they are placed within the array:
+
+    RateLimiter::for('login', function (Request $request) {
+        return [
+            Limit::perMinute(500),
+            Limit::perMinute(3)->by($request->input('email')),
+        ];
+    });
+
+<a name="attaching-rate-limiters-to-routes"></a>
+### Attaching Rate Limiters To Routes
+
+Rate limiters may be attached to routes or route groups using the `throttle` [middleware](/docs/{{version}}/middleware). The throttle middleware accepts the name of the rate limiter you wish to assign to the route:
+
+    Route::middleware(['throttle:uploads'])->group(function () {
+        Route::post('/audio', function () {
             //
         });
-    });
 
-#### Distinct Guest & Authenticated User Rate Limits
-
-You may specify different rate limits for guest and authenticated users. For example, you may specify a maximum of `10` requests per minute for guests `60` for authenticated users:
-
-    Route::middleware('throttle:10|60,1')->group(function () {
-        //
-    });
-
-You may also combine this functionality with dynamic rate limits. For example, if your `User` model contains a `rate_limit` attribute, you may pass the name of the attribute to the `throttle` middleware so that it is used to calculate the maximum request count for authenticated users:
-
-    Route::middleware('auth:api', 'throttle:10|rate_limit,1')->group(function () {
-        Route::get('/user', function () {
+        Route::post('/video', function () {
             //
         });
     });
@@ -468,3 +523,10 @@ You may use the `current`, `currentRouteName`, and `currentRouteAction` methods 
     $action = Route::currentRouteAction();
 
 Refer to the API documentation for both the [underlying class of the Route facade](https://laravel.com/api/{{version}}/Illuminate/Routing/Router.html) and [Route instance](https://laravel.com/api/{{version}}/Illuminate/Routing/Route.html) to review all accessible methods.
+
+<a name="cors"></a>
+## Cross-Origin Resource Sharing (CORS)
+
+Laravel can automatically respond to CORS OPTIONS requests with values that you configure. All CORS settings may be configured in your `cors` configuration file and OPTIONS requests will automatically be handled by the `HandleCors` middleware that is included by default in your global middleware stack.
+
+> {tip} For more information on CORS and CORS headers, please consult the [MDN web documentation on CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#The_HTTP_response_headers).

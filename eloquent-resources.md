@@ -70,7 +70,7 @@ Before diving into all of the options available to you when writing resources, l
 Every resource class defines a `toArray` method which returns the array of attributes that should be converted to JSON when sending the response. Notice that we can access model properties directly from the `$this` variable. This is because a resource class will automatically proxy property and method access down to the underlying model for convenient access. Once the resource is defined, it may be returned from a route or controller:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return new UserResource(User::find(1));
@@ -82,7 +82,7 @@ Every resource class defines a `toArray` method which returns the array of attri
 If you are returning a collection of resources or a paginated response, you may use the `collection` method when creating the resource instance in your route or controller:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return UserResource::collection(User::all());
@@ -122,7 +122,7 @@ Once the resource collection class has been generated, you may easily define any
 After defining your resource collection, it may be returned from a route or controller:
 
     use App\Http\Resources\UserCollection;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/users', function () {
         return new UserCollection(User::all());
@@ -151,7 +151,7 @@ When returning a resource collection from a route, Laravel resets the collection
 When the `preserveKeys` property is set to `true`, collection keys will be preserved:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return UserResource::collection(User::all()->keyBy->id);
@@ -215,7 +215,7 @@ In essence, resources are simple. They only need to transform a given model into
 Once a resource has been defined, it may be returned directly from a route or controller:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return new UserResource(User::find(1));
@@ -250,7 +250,7 @@ If you would like to include related resources in your response, you may add the
 While resources translate a single model into an array, resource collections translate a collection of models into an array. It is not absolutely necessary to define a resource collection class for each one of your model types since all resources provide a `collection` method to generate an "ad-hoc" resource collection on the fly:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return UserResource::collection(User::all());
@@ -286,7 +286,7 @@ However, if you need to customize the meta data returned with the collection, it
 Like singular resources, resource collections may be returned directly from routes or controllers:
 
     use App\Http\Resources\UserCollection;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/users', function () {
         return new UserCollection(User::all());
@@ -295,7 +295,7 @@ Like singular resources, resource collections may be returned directly from rout
 <a name="data-wrapping"></a>
 ### Data Wrapping
 
-By default, your outer-most resource is wrapped in a `data` key when the resource response is converted to JSON. So, for example, a typical resource collection response looks like the following:
+By default, your outermost resource is wrapped in a `data` key when the resource response is converted to JSON. So, for example, a typical resource collection response looks like the following:
 
     {
         "data": [
@@ -312,13 +312,31 @@ By default, your outer-most resource is wrapped in a `data` key when the resourc
         ]
     }
 
-If you would like to disable the wrapping of the outer-most resource, you may use the `withoutWrapping` method on the base resource class. Typically, you should call this method from your `AppServiceProvider` or another [service provider](/docs/{{version}}/providers) that is loaded on every request to your application:
+If you would like to use a custom key instead of `data`, you may define a `$wrap` attribute on the resource class:
+
+    <?php
+
+    namespace App\Http\Resources;
+
+    use Illuminate\Http\Resources\Json\JsonResource;
+
+    class User extends JsonResource
+    {
+        /**
+         * The "data" wrapper that should be applied.
+         *
+         * @var string
+         */
+        public static $wrap = 'user';
+    }
+
+If you would like to disable the wrapping of the outermost resource, you may use the `withoutWrapping` method on the base resource class. Typically, you should call this method from your `AppServiceProvider` or another [service provider](/docs/{{version}}/providers) that is loaded on every request to your application:
 
     <?php
 
     namespace App\Providers;
 
-    use Illuminate\Http\Resources\Json\Resource;
+    use Illuminate\Http\Resources\Json\JsonResource;
     use Illuminate\Support\ServiceProvider;
 
     class AppServiceProvider extends ServiceProvider
@@ -340,17 +358,17 @@ If you would like to disable the wrapping of the outer-most resource, you may us
          */
         public function boot()
         {
-            Resource::withoutWrapping();
+            JsonResource::withoutWrapping();
         }
     }
 
-> {note} The `withoutWrapping` method only affects the outer-most response and will not remove `data` keys that you manually add to your own resource collections.
+> {note} The `withoutWrapping` method only affects the outermost response and will not remove `data` keys that you manually add to your own resource collections.
 
 ### Wrapping Nested Resources
 
 You have total freedom to determine how your resource's relationships are wrapped. If you would like all resource collections to be wrapped in a `data` key, regardless of their nesting, you should define a resource collection class for each resource and return the collection within a `data` key.
 
-You may be wondering if this will cause your outer-most resource to be wrapped in two `data` keys. Don't worry, Laravel will never let your resources be accidentally double-wrapped, so you don't have to be concerned about the nesting level of the resource collection you are transforming:
+You may be wondering if this will cause your outermost resource to be wrapped in two `data` keys. Don't worry, Laravel will never let your resources be accidentally double-wrapped, so you don't have to be concerned about the nesting level of the resource collection you are transforming:
 
     <?php
 
@@ -412,7 +430,7 @@ When returning paginated collections in a resource response, Laravel will wrap y
 You may always pass a paginator instance to the `collection` method of a resource or to a custom resource collection:
 
     use App\Http\Resources\UserCollection;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/users', function () {
         return new UserCollection(User::paginate());
@@ -602,7 +620,7 @@ When returning additional meta data from your resources, you never have to worry
 
 #### Top Level Meta Data
 
-Sometimes you may wish to only include certain meta data with a resource response if the resource is the outer-most resource being returned. Typically, this includes meta information about the response as a whole. To define this meta data, add a `with` method to your resource class. This method should return an array of meta data to be included with the resource response only when the resource is the outer-most resource being rendered:
+Sometimes you may wish to only include certain meta data with a resource response if the resource is the outermost resource being returned. Typically, this includes meta information about the response as a whole. To define this meta data, add a `with` method to your resource class. This method should return an array of meta data to be included with the resource response only when the resource is the outermost resource being rendered:
 
     <?php
 
@@ -654,7 +672,7 @@ You may also add top-level data when constructing resource instances in your rou
 As you have already read, resources may be returned directly from routes and controllers:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return new UserResource(User::find(1));
@@ -663,7 +681,7 @@ As you have already read, resources may be returned directly from routes and con
 However, sometimes you may need to customize the outgoing HTTP response before it is sent to the client. There are two ways to accomplish this. First, you may chain the `response` method onto the resource. This method will return an `Illuminate\Http\JsonResponse` instance, allowing you full control of the response's headers:
 
     use App\Http\Resources\User as UserResource;
-    use App\User;
+    use App\Models\User;
 
     Route::get('/user', function () {
         return (new UserResource(User::find(1)))
@@ -671,7 +689,7 @@ However, sometimes you may need to customize the outgoing HTTP response before i
                     ->header('X-Value', 'True');
     });
 
-Alternatively, you may define a `withResponse` method within the resource itself. This method will be called when the resource is returned as the outer-most resource in a response:
+Alternatively, you may define a `withResponse` method within the resource itself. This method will be called when the resource is returned as the outermost resource in a response:
 
     <?php
 
